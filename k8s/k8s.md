@@ -230,4 +230,4 @@ liangxiaole@ryoushous-MBP yaml % kubectl delete ns dev
 namespace "dev" deleted
 ```
 \
-; 
+;  
