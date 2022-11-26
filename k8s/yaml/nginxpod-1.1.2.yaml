@@ -15,4 +15,4 @@ metadata:
 spec: 
   containers:
   - name: nginx-containers
-    image: nginx:1.17.1
+    image: nginx:1.17.2

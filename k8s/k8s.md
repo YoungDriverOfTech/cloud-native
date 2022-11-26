@@ -116,3 +116,33 @@ namespace "dev" deleted
 pod "nginxpod" deleted
 ```
 
+### 1.1.3 声明式对象配置  
+- 案例  
+创建dev名称空间 -> 创建一个pod -> 查看pod  
+如果再次执行apply，如果没有编程yaml的话，就什么都不执行。如果改变了的话就更新  
+[yaml](./yaml/nginxpod-1.1.2.yaml) 
+```shell
+liangxiaole@ryoushous-MBP yaml % kubectl apply -f nginxpod-1.1.2.yaml 
+namespace/dev created
+pod/nginxpod created
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl get ns 
+NAME              STATUS   AGE
+default           Active   52m
+dev               Active   9s
+kube-node-lease   Active   52m
+kube-public       Active   52m
+kube-system       Active   52m
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl get pod -n dev
+NAME       READY   STATUS    RESTARTS   AGE
+nginxpod   1/1     Running   0          17s
+
+
+# 变更了配置文件再次执行，那么就会显示configured
+liangxiaole@ryoushous-MBP yaml % kubectl apply -f nginxpod-1.1.2.yaml
+namespace/dev unchanged
+pod/nginxpod configured
+```
