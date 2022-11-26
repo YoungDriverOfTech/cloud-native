@@ -96,6 +96,28 @@ kube-system       Active   33m
 创建dev名称空间 -> 创建一个pod -> 查看pod -> 删除pod -> 删除名称空间   
 [yaml](./yaml/nginxpod-1.1.2.yaml) 
 
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata: 
+  name: dev
+
+
+---
+
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: nginxpod
+  namespace: dev
+spec: 
+  containers:
+  - name: nginx-containers
+    image: nginx:1.17.2
+```
+
+
 ```shell
 liangxiaole@ryoushous-MBP yaml % kubectl create -f nginxpod-1.1.2.yaml 
 namespace/dev created
@@ -121,6 +143,29 @@ pod "nginxpod" deleted
 创建dev名称空间 -> 创建一个pod -> 查看pod  
 如果再次执行apply，如果没有编程yaml的话，就什么都不执行。如果改变了的话就更新  
 [yaml](./yaml/nginxpod-1.1.2.yaml) 
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata: 
+  name: dev
+
+
+---
+
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: nginxpod
+  namespace: dev
+spec: 
+  containers:
+  - name: nginx-containers
+    image: nginx:1.17.2
+```
+
+
 ```shell
 liangxiaole@ryoushous-MBP yaml % kubectl apply -f nginxpod-1.1.2.yaml 
 namespace/dev created
