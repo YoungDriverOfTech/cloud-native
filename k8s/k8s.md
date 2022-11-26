@@ -45,3 +45,48 @@ kubectl get pod pod_name
 # 查看某个pod，以yaml格式展示结果
 kubectl get pod pod_name -o yaml
 ```
+
+- 案例  
+创建dev名称空间 -> 创建一个pod -> 查看pod -> 删除pod -> 删除名称空间  
+```shell
+liangxiaole@ryoushous-MBP yaml % kubectl create ns dev
+namespace/dev created
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl get ns
+NAME              STATUS   AGE
+default           Active   28m
+dev               Active   7s
+kube-node-lease   Active   28m
+kube-public       Active   28m
+kube-system       Active   28m
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl run pod --image=nginx:1.17.1 -n dev
+pod/pod created
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl get pod -n dev
+NAME   READY   STATUS    RESTARTS   AGE
+pod    1/1     Running   0          10s
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl delete pod pod -n dev 
+pod "pod" deleted
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl get pod -n dev         
+No resources found in dev namespace.
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl delete ns dev
+namespace "dev" deleted
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl get ns       
+NAME              STATUS   AGE
+default           Active   33m
+kube-node-lease   Active   33m
+kube-public       Active   33m
+kube-system       Active   33m
+```
