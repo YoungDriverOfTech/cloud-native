@@ -191,3 +191,42 @@ liangxiaole@ryoushous-MBP yaml % kubectl apply -f nginxpod-1.1.2.yaml
 namespace/dev unchanged
 pod/nginxpod configured
 ```
+
+# 2 实战
+## 2.1 Namespace  
+实现多套环境的资源隔离，或者多租户的资源隔离。在同一个ns中的pod中可以相互访问，不再同一个则不能相互访问。将不同的ns交给不同的租户管理，那么就实现了资源的隔离。  
+
+### 2.2.1 查  
+```shell
+liangxiaole@ryoushous-MBP yaml % kubectl get ns default
+NAME      STATUS   AGE
+default   Active   66m
+
+
+# 查看ns详情 describe
+liangxiaole@ryoushous-MBP yaml % kubectl describe ns default
+Name:         default
+Labels:       kubernetes.io/metadata.name=default
+Annotations:  <none>
+Status:       Active # Active命名空间正在使用中，Terminating 正在删除
+
+No resource quota.
+
+No LimitRange resource.
+# resource quota 针对ns做的资源限制
+# LimitRange resource 针对ns中每个组件做的资源限制
+```
+
+### 2.2.2 增  
+```shell
+liangxiaole@ryoushous-MBP yaml % kubectl create ns dev
+namespace/dev created
+liangxiaole@ryoushous-MBP yaml % 
+```
+
+### 2.2.3 删除  
+```shell
+liangxiaole@ryoushous-MBP yaml % kubectl delete ns dev
+namespace "dev" deleted
+```
+
