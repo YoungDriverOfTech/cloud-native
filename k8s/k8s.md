@@ -90,3 +90,29 @@ kube-node-lease   Active   33m
 kube-public       Active   33m
 kube-system       Active   33m
 ```
+
+### 1.1.2 命令式对象配置  
+- 案例  
+创建dev名称空间 -> 创建一个pod -> 查看pod -> 删除pod -> 删除名称空间   
+[yaml](./yaml/nginxpod-1.1.2.yaml) 
+
+```shell
+liangxiaole@ryoushous-MBP yaml % kubectl create -f nginxpod-1.1.2.yaml 
+namespace/dev created
+pod/nginxpod created
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl get ns dev
+NAME   STATUS   AGE
+dev    Active   16s
+
+liangxiaole@ryoushous-MBP yaml % kubectl get pod -n dev
+NAME       READY   STATUS    RESTARTS   AGE
+nginxpod   1/1     Running   0          51s
+
+
+liangxiaole@ryoushous-MBP yaml % kubectl delete -f nginxpod-1.1.2.yaml 
+namespace "dev" deleted
+pod "nginxpod" deleted
+```
+
