@@ -1,0 +1,24 @@
+# deployment
+apiVersion: v1
+kind: Deployment
+metadata: 
+  name: nginx
+  namespace: dev
+# deployment 的配置，包括标签选择和副本数量  
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      run: nginx
+  # deployment管理的资源    
+  template: 
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx:1.17.1
+        name: nginx
+        ports:
+        - containerPort: 80
+          protocol: TCP

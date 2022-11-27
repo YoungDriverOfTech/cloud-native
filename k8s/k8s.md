@@ -343,3 +343,67 @@ spec:
       containerPort: 80
       protocol: TCP
 ```
+
+## 2.4 Deployment  
+k8s中，pod是最小的控制单元，但是k8s很少直接控制pod，一般都是通过pod控制器来完成的。pod控制器用于pod的管理，确保pod资源符合预期的状态，当pod资源出现故障的时候，会尝试进行重启或者重建pod。 
+
+- 命令操作  
+```shell
+# 新建deploy
+liangxiaole@ryoushous-MBP yaml % kubectl create deployment nginx --image=nginx:1.17.1 --port=80 --replicas=3 --namespace=dev
+deployment.apps/nginx created
+
+
+# 查看deploy
+liangxiaole@ryoushous-MBP yaml % kubectl get deployment -n dev --show-labels
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE    LABELS
+nginx   3/3     3            3           100s   app=nginx
+
+
+# 查看pod
+liangxiaole@ryoushous-MBP yaml % kubectl get pod -n dev --show-labels
+NAME                     READY   STATUS    RESTARTS   AGE   LABELS
+nginx-657fdb5865-g59hp   1/1     Running   0          77s   app=nginx,pod-template-hash=657fdb5865
+nginx-657fdb5865-lr77k   1/1     Running   0          77s   app=nginx,pod-template-hash=657fdb5865
+nginx-657fdb5865-w9sqz   1/1     Running   0          77s   app=nginx,pod-template-hash=657fdb5865
+
+
+# 删除deploy
+liangxiaole@ryoushous-MBP yaml % kubectl delete deployment nginx -n dev
+deployment.apps "nginx" deleted
+```
+
+- 配置文件操作  
+[yaml](./yaml/nginxdeploy-2.4.yaml) 
+```yaml
+# deployment
+apiVersion: v1
+kind: Deployment
+metadata: 
+  name: nginx
+  namespace: dev
+# deployment 的配置，包括标签选择和副本数量  
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      run: nginx
+  # deployment管理的资源    
+  template: 
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx:1.17.1
+        name: nginx
+        ports:
+        - containerPort: 80
+          protocol: TCP
+```
+
+```shell
+# create
+liangxiaole@ryoushous-MBP yaml % kubectl apply -f nginxdeploy-2.4.yaml
+```
+
