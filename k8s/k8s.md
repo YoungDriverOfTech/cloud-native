@@ -246,6 +246,7 @@ pod/nginx created
 ```
 
 - 配置操作  
+[yaml](./yaml/nginxpod-2.2.1.yaml) 
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -271,3 +272,74 @@ liangxiaole@ryoushous-MBP yaml % kubectl delete -f nginxpod-2.2.1.yaml
 pod "nginx" deleted
 ```
 
+## 2.3 Label  
+在资源上添加标识，对资源进行选择。  
+> 一个label会议键值对的方式附加到各种对象上，比如Node Pod Service  
+> 一个资源对象可以定义任意数量的Label，同一个Label也可以被添加到任意数量的资源对象上去  
+> Label通常在资源对象定义时明确，当然也可以在对象创建后动态添加或者删除  
+
+- 命令方式  
+```shell  
+# 打标签
+liangxiaole@ryoushous-MBP yaml % kubectl label pod nginx -n dev version=1.0
+pod/nginx labeled
+
+
+# 查看标签
+liangxiaole@ryoushous-MBP yaml % kubectl get pods -n dev --show-labels     
+NAME    READY   STATUS    RESTARTS   AGE   LABELS
+nginx   1/1     Running   0          87s   version=1.0
+
+
+# 追加不同标签
+liangxiaole@ryoushous-MBP yaml % kubectl label pod nginx -n dev env=back
+pod/nginx labeled
+
+
+# 查看不同标签
+liangxiaole@ryoushous-MBP yaml % kubectl get pods -n dev --show-labels  
+NAME    READY   STATUS    RESTARTS   AGE    LABELS
+nginx   1/1     Running   0          113s   env=back,version=1.0
+
+
+# 覆盖标签
+liangxiaole@ryoushous-MBP yaml % kubectl label pod nginx -n dev env=front --overwrite
+pod/nginx labeled
+
+
+# 查看覆盖的标签
+liangxiaole@ryoushous-MBP yaml % kubectl get pods -n dev --show-labels               
+NAME    READY   STATUS    RESTARTS   AGE     LABELS
+nginx   1/1     Running   0          2m39s   env=front,version=1.0
+
+
+# 删除标签
+liangxiaole@ryoushous-MBP yaml % kubectl label pod nginx -n dev env-
+pod/nginx unlabeled
+
+
+# 查看删除后的标签
+liangxiaole@ryoushous-MBP yaml % kubectl get pods -n dev --show-labels               
+NAME    READY   STATUS    RESTARTS   AGE    LABELS
+nginx   1/1     Running   0          6m2s   version=1.0
+```
+
+- 配置方式  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: nginx
+  namespace: dev
+  labels:
+    version: "3.0"
+    env: "test"
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.17.1
+    ports: 
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+```
