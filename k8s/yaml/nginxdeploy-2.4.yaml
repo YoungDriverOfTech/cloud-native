@@ -1,5 +1,5 @@
 # deployment
-apiVersion: v1
+apiVersion: app/v1
 kind: Deployment
 metadata: 
   name: nginx
@@ -13,6 +13,7 @@ spec:
   # deployment管理的资源    
   template: 
     metadata:
+      name: nginx
       labels:
         run: nginx
     spec:

@@ -377,7 +377,7 @@ deployment.apps "nginx" deleted
 [yaml](./yaml/nginxdeploy-2.4.yaml) 
 ```yaml
 # deployment
-apiVersion: v1
+apiVersion: app/v1
 kind: Deployment
 metadata: 
   name: nginx
@@ -391,6 +391,7 @@ spec:
   # deployment管理的资源    
   template: 
     metadata:
+      name: nginx
       labels:
         run: nginx
     spec:
