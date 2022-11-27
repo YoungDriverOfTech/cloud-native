@@ -233,6 +233,7 @@ namespace "dev" deleted
 ## 2.2 Pod  
 Pod是K8s集群进行管理的最小单元，运行在容器中，容器存在于pod中。   
 ### 2.2.1 增  
+- 命令行操作  
 k8s没有提供单独运行pod的命令，都是通过pod控制器来实现的
 ```shell
 # 命令： kubectl run pod控制器名称 【参数】
@@ -242,5 +243,31 @@ k8s没有提供单独运行pod的命令，都是通过pod控制器来实现的
 
 liangxiaole@ryoushous-MBP yaml % kubectl run nginx --image=nginx:1.17.1 --port=80 --namespace dev
 pod/nginx created
+```
+
+- 配置操作  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: dev
+spec:
+  containers:
+  - image: nginx:1.17.1
+    name: nginx
+    ports:
+    - name: nginx-port
+      containerPort: 80
+      protocol: TCP
+```
+```shell
+# create
+liangxiaole@ryoushous-MBP yaml % kubectl create -f nginxpod-2.2.1.yaml
+pod/nginx created
+
+# delete
+liangxiaole@ryoushous-MBP yaml % kubectl delete -f nginxpod-2.2.1.yaml 
+pod "nginx" deleted
 ```
 
