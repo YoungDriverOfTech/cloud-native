@@ -196,7 +196,7 @@ pod/nginxpod configured
 ## 2.1 Namespace  
 实现多套环境的资源隔离，或者多租户的资源隔离。在同一个ns中的pod中可以相互访问，不再同一个则不能相互访问。将不同的ns交给不同的租户管理，那么就实现了资源的隔离。  
 
-### 2.2.1 查  
+### 2.1.1 查  
 ```shell
 liangxiaole@ryoushous-MBP yaml % kubectl get ns default
 NAME      STATUS   AGE
@@ -217,17 +217,30 @@ No LimitRange resource.
 # LimitRange resource 针对ns中每个组件做的资源限制
 ```
 
-### 2.2.2 增  
+### 2.1.2 增  
 ```shell
 liangxiaole@ryoushous-MBP yaml % kubectl create ns dev
 namespace/dev created
 liangxiaole@ryoushous-MBP yaml % 
 ```
 
-### 2.2.3 删除  
+### 2.1.3 删除  
 ```shell
 liangxiaole@ryoushous-MBP yaml % kubectl delete ns dev
 namespace "dev" deleted
 ```
-\
-;  
+
+## 2.2 Pod  
+Pod是K8s集群进行管理的最小单元，运行在容器中，容器存在于pod中。   
+### 2.2.1 增  
+k8s没有提供单独运行pod的命令，都是通过pod控制器来实现的
+```shell
+# 命令： kubectl run pod控制器名称 【参数】
+# --image 指定pod镜像
+# --port 指定端口
+# --namespace 指定ns
+
+liangxiaole@ryoushous-MBP yaml % kubectl run nginx --image=nginx:1.17.1 --port=80 --namespace dev
+pod/nginx created
+```
+
