@@ -408,3 +408,93 @@ spec:
 liangxiaole@ryoushous-MBP yaml % kubectl apply -f nginxdeploy-2.4.yaml
 ```
 
+## 2.5 Service  
+每个pod都会被单独分配一个IP，但是又两个问题    
+> Pod IP会随着pod重建产生变化  
+> 是内部IP，外部无法访问  
+
+Service来解决这个问题，可以被看作是一组同类的pod对外的访问接口。借助service可以更好实现的实现服务的发现和负载均衡。  
+
+
+### 2.5.1 集群内可访问的service（ClusterIP）  
+```shell
+
+# 创建deploy
+liangxiaole@ryoushous-MBP yaml % kubectl create deploy nginx --image=nginx:1.17.1 --port=80 --replicas=3 -n dev 
+deployment.apps/nginx created
+
+# 创建并且暴露service
+liangxiaole@ryoushous-MBP yaml % kubectl expose deploy nginx --name=svc-nginx1 --type=ClusterIP --port=80 --target-port=80 -n dev
+service/svc-nginx1 exposed
+
+# 查看service
+liangxiaole@ryoushous-MBP yaml % kubectl get svc -n dev
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+svc-nginx1   ClusterIP   10.106.158.38   <none>        80/TCP    20s
+```
+
+### 2.5.2 集群外可访问的service（NodePort）  
+```shell
+
+# 创建deploy
+liangxiaole@ryoushous-MBP yaml % kubectl create deploy nginx --image=nginx:1.17.1 --port=80 --replicas=3 -n dev 
+deployment.apps/nginx created
+
+# 创建并且暴露service
+liangxiaole@ryoushous-MBP yaml % kubectl expose deploy nginx --name=svc-nginx2 --type=NodePort --port=80 --target-port=80 -n dev
+service/svc-nginx1 exposed
+
+# 查看
+liangxiaole@ryoushous-MBP yaml % kubectl get svc -n dev
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+svc-nginx1   ClusterIP   10.106.158.38   <none>        80/TCP         5m28s
+svc-nginx2   NodePort    10.96.219.0     <none>        80:30963/TCP   8s
+```
+
+### 2.5.3 删除  
+```shell
+liangxiaole@ryoushous-MBP yaml % kubectl get svc -n dev
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+svc-nginx1   ClusterIP   10.106.158.38   <none>        80/TCP         8m50s
+svc-nginx2   NodePort    10.96.219.0     <none>        80:30963/TCP   3m30s
+
+# delete 
+liangxiaole@ryoushous-MBP yaml % kubectl delete svc svc-nginx1 -n dev
+service "svc-nginx1" deleted
+
+# search
+liangxiaole@ryoushous-MBP yaml % kubectl get svc -n dev              
+NAME         TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE
+svc-nginx2   NodePort   10.96.219.0   <none>        80:30963/TCP   3m44s
+```
+
+
+### 2.5.4 配置文件  
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-nginx
+  namespace: dev
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: nginx
+  type: ClusterIP
+```
+
+```shell
+# create
+liangxiaole@ryoushous-MBP yaml % kubectl apply -f svc-2.5.4.yaml
+service/svc-nginx created
+
+# search
+liangxiaole@ryoushous-MBP yaml % kubectl get svc -n dev
+NAME        TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+svc-nginx   ClusterIP   10.107.216.33   <none>        80/TCP    10s
+```
+
