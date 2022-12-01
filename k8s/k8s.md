@@ -783,3 +783,312 @@ spec:
 # 1MiB == 1,024 KiB
 # 1GiB == 1,024 MiB
 ```
+
+## 3.3 Pod生命周期
+
+### 3.3.1 概述  
+pod从创建到销毁的时间段是pod生命周期  
+- pod创建过程
+- 运行初始化容器过程（init container）
+- 运行主容器（main container）  
+        - 容器启动后钩子（post start），容器终止前钩子（pre stop）
+        - 容器存活探测（liveness probe），就绪性探测（readiness probe）
+- pod终止过程  
+
+● 在整个生命周期中，Pod会出现5种状态（相位），分别如下：  
+- 挂起（Pending）：API Server已经创建了Pod资源对象，但它尚未被调度完成或者仍处于下载镜像的过程中。  
+- 运行中（Running）：Pod已经被调度到某节点，并且所有容器都已经被kubelet创建完成。  
+- 成功（Succeeded）：Pod中的所有容器都已经成功终止并且不会被重启。  
+- 失败（Failed）：所有容器都已经终止，但至少有一个容器终止失败，即容器返回了非0值的退出状态。  
+- 未知（Unknown）：API Server无法正常获取到Pod对象的状态信息，通常由于网络通信失败所导致。  
+
+### 3.3.2 初始化容器  
+会在主容器之前进行启动，有启动的先后顺序，如果卡住了则后面的容器无法启动。
+
+下面的案例，有两个初始化容器，创建的时候会执行命令，但是这个命令是走不通的，所以k8s在创建的时候就会卡住
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-container
+  nemaspace: dev
+  labels:
+    name: wahaha
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      imagePullPolicy: ifNotPresent
+      ports:
+        - name: nging-port
+          containerPort: 80
+          protocol: TCP
+      resources:
+        limits:
+          cpu: "2"
+          memory: "10Gi"
+        requests:
+          cpu: "2"
+          memory: "10Gi"
+  # 初始化容器配置
+  initContainers:
+    - name: test-mysql
+      image: busybox:1.30
+      command: ["sh", "-c", "until ping 1.1.1.1 -c 1; do echo waiting for mysql ...; sleep 2; done"]
+      securityContext:
+        privileged: true # 使用特权模式运行容器
+    - name: "test-redis"
+      image: busybox:1.30
+      command: ["sh","-c","until ping 192.168.18.104 -c 1;do echo waiting for redis ...;sleep 2;done;"]
+```
+
+### 3.3.3 钩子函数  
+定义  
+- post start 容器创建之后执行，如果失败则重启容器
+- pre stop 容器终止之前执行，完成之后终止容器，完成之前会阻塞删除容器的操作  
+
+支持三种动作  
+- exec命令：在容器内执行一次命令
+```yaml
+lifecycle:
+  postStart:
+    exec:
+      command:
+        - cat
+        - /tmp/healthy
+```
+
+- topSocket：在当前容器尝试访问socket
+```yaml
+lifecycle:
+  postSttart:
+    tcpSocket:
+      port: 8080
+```
+
+- httpGet：在当前容器向某url发起http请求  
+```yaml
+lifecycle:
+  postStart:
+    httpGet:
+      path: /URL
+      port: 80
+      host: 主机地址
+      scheme: HTTP/HTTPS
+```
+
+- 案例：容器启动后修改html内容，终止前停掉nginx服务  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ngingx-life
+  nemaspace: dev
+  labels:
+    name: wahaha
+spec:
+  containers:
+    - name: nginx-pod
+      image: ngingx:1.17.1
+      imagePullPolicy: Never
+      ports:
+        - name: nginx-port
+          containerPort: 80
+          protocol: TCP
+      resources:
+        limits:
+          cpu: "4"
+          memory: "5Gi"
+        requests:
+          cpu: "8"
+          memory: "10Gi"
+      # 容器生命周期配置
+      lifecycle:
+        postStart:  # 启动后，修改掉nginx主页的显示内容
+          exec:
+            command:  ["/bin/sh","-c","echo postStart ... > /usr/share/nginx/html/index.html"]
+        preStop:  # 中之前，停掉nginx的服务
+          exec:
+            command: ["/usr/sbin/nginx","-s","quit"]
+```
+
+### 3.3.4 容器探测  
+
+kubernetes提供了两种探针来实现容器探测，分别是  
+- livenessProbe: 存活性探测，决定是否重启容器。
+- readinessProbe：就绪性探测，决定是否将请求转发给容器。  
+
+支持三种动作  
+- exec命令：在容器内执行一次命令，如果命令执行的退出码为0，则认为程序正常，否则不正常。
+```yaml
+livenessProbe:
+  exec:
+    command:
+      - cat
+      - /tmp/healthy
+```
+
+- tcpSocket: 访问一个容器的端口，能建立链接为正常，否则不正常
+```yaml
+livenessProbe:
+  tcpSocket:
+    port: 8080
+```
+
+- httpGet: 访问一个url，返回状态码在200-399位正常，否则不正常
+```yaml
+livenessProbe:
+  httpGet:
+    path: /URL
+    port: 80
+    host: 主机名
+    scheme: http/https # 协议名字
+```
+
+### 3.3.4 重启策略  
+容器探测中，一旦出现问题，k8s就会重启容器。有三种策略可以选择  
+
+***restartPolicy***
+- Always：默认值，总是重启
+- OnFailure：容器终止运行且推出码不为0时重启
+- Never：不论状态如何，都不重启该容器  
+
+案例
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-restart
+  namespace: dev
+  labels:
+    name: wahaha
+spec:
+  containers:
+    - name: nginx-wahaa
+      image: nginx:1.18.1
+      imagePullPolicy: Always
+      ports:
+        - name: wahaha-port
+          containerPort: 80
+          protocol: TCP
+      livenessProbe:
+        httpGet:
+          path: /url
+          port: 80
+          host: 1.0.0.1
+          scheme: https
+  # 重启策略  
+  restartPolicy: Never
+```
+
+### 3.3.4 Pod调度  
+即控制pod部署到哪个节点上面  
+- 自动调度：放在哪个node上完全由scheduler决定
+- 定向调度：NodeName，NodeSelector
+- 亲和性调度：NodeAffinity，PodAffinity，PodAntiAffinity
+- 污点（容忍）调度：Taints，Toleration
+
+***定向调度***  
+在pod文件上声明要调度到的nodeName或者nodeSelector，就会往上面调。而且是强制的，如果node或者选择器不存在，也会调，但是会失败。
+
+> nodeName
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: wahaha
+  namespace: wahaha-dev
+  labels:
+    name: wahaha
+spec:
+  containers:
+    - name: nginx
+      image: ngins:1.171.
+      imagePullPolicy: Always
+      ports:
+        - name: nginx-name
+          containerPort: 80
+          protocol: TCP
+  nodeName: worker1 # 指定调度到worker1节点上面
+```
+
+> nodeSelector    
+
+调度到加了标签的node上面去    
+给worker1和worker2节点分别打上标签  
+```shell
+kubectl label node worker1 nodeenv=pro
+kubectl label node worker2 nodeenv=test
+```
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: wahaha
+  namespace: wahaha-dev
+  labels:
+    name: wahaha
+spec:
+  containers:
+    - name: nginx
+      image: ngins:1.171.
+      imagePullPolicy: Always
+      ports:
+        - name: nginx-name
+          containerPort: 80
+          protocol: TCP
+  nodeSelector: # 指定调度到打了下面标签的节点上面
+    nodeenv: pro
+```
+
+***亲和性调度***  
+优先选择满足条件的节点进行调度，不满足条件的话，也可以选择别的节点进行调度。  
+
+>   nodeAffinity（node亲和性）：以Node为目标，解决Pod可以调度到那些Node的问题。  
+>   podAffinity（pod亲和性）：以Pod为目标，解决Pod可以和那些已存在的Pod部署在同一个节点中的问题。  
+>   podAntiAffinity（pod反亲和性）：以Pod为目标，解决Pod不能和那些已经存在的Pod部署在同一节点中的问题。
+
+> 关于亲和性和反亲和性的使用场景的说明：  
+● 亲和性：如果两个应用频繁交互，那么就有必要利用亲和性让两个应用尽可能的靠近，这样可以较少因网络通信而带来的性能损耗。  
+● 反亲和性：当应用采用多副本部署的时候，那么就有必要利用反亲和性让各个应用实例打散分布在各个Node上，这样可以提高服务的高可用性。
+
+___
+
+> nodeAffinity  
+
+```yaml
+pod.spec.affinity.nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:  #Node节点必须满足指定的所有规则才可以，相当于硬限制
+    nodeSelectorTerms: # 节点选择列表
+      matchFields: # 按节点字段列出的节点选择器要求列表  
+      matchExpressions: # 按节点标签列出的节点选择器要求列表(推荐)
+        key:   # 键
+        values:  # 值
+        operator: # 关系符 支持Exists, DoesNotExist, In, NotIn, Gt, Lt
+
+  preferredDuringSchedulingIgnoredDuringExecution:  #优先调度到满足指定的规则的Node，相当于软限制 (倾向)     
+    preference:  # 一个节点选择器项，与相应的权重相关联
+      matchFields: # 按节点字段列出的节点选择器要求列表
+      matchExpressions:  # 按节点标签列出的节点选择器要求列表(推荐)
+        key: # 键
+        values: # 值
+        operator: # 关系符 支持In, NotIn, Exists, DoesNotExist, Gt, Lt  
+    weight: # 倾向权重，在范围1-100。
+```
+
+用法说明
+```yaml
+- matchExpressions:
+  # 节点上，有标签的key是nodeenv
+  - key: nodeenv 
+    operator: Exists
+  # 节点上，标签的key是nodeenv，并且值是["xxx", "yyy"]其中之一
+  - key: nodeenv 
+    operator: In
+      values: ["xxx", "yyy"]
+  # 节点上，标签的key是nodeenv，并且值 > 650
+  - key: nodeenv
+    operator: Gt
+      value: "650"
+```
