@@ -1092,3 +1092,361 @@ pod.spec.affinity.nodeAffinity:
     operator: Gt
       value: "650"
 ```
+
+强制亲和案例  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: required
+  namespace: dev
+  labels:
+    name: wahaha
+spec:
+  containers:
+    - name: required
+      image: nginx:1.17.1
+      imagePullPolicy: ifNotPresent
+      ports:
+        - name: required-name
+          containerPort: 80
+          protocol: TCP
+  # 强制亲和配置
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+            - key: nodeenv
+              operator: In
+              value:
+                - "xxx"
+                - "yyy"
+
+```
+
+偏向亲和案例  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ngingx
+  namespace: dev
+  labels:
+    user: wahaha
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      imagePullPolicy: Always
+      ports:
+        - name: nginx-name
+          containerPort: 80
+          protocol: UDP
+  # 偏向亲和配置
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - preference:
+            - matchExpressions:
+                - key: nodeenv
+                  operator: In
+                  values:
+                    - "xxx"
+                    - "yyy"
+          weight: 1
+```
+
+> podAffinity  
+
+> topologyKey用于指定调度的作用域，例如:
+>>● 如果指定为kubernetes.io/hostname，那就是以Node节点为区分范围。  
+>> ● 如果指定为beta.kubernetes.io/os，则以Node节点的操作系统类型来区分。
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: dev
+  labels:
+    user: wahaha
+spec: 
+  containers:
+    - name: "nginx-wahaha"
+      image: nginx:1.17.1
+      imagePullPolicy: Never
+      ports:
+        - name: port-name
+          containerPort: 80
+          protocol: TCP
+  affinity:
+    podAffinity:
+      # 硬限制
+      # 该Pod必须和拥有标签podenv=xxx或者podenv=yyy的Pod在同一个Node上
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: podenv
+                operator: In
+                values:
+                  - "xxx"
+                  - "yyy"
+          topologyKey: kubernetes.io/hostname
+
+```
+
+> podAntiAffinity  
+
+让新创建的Pod和参照的Pod不在一个区域的功能  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: dev
+  labels:
+    user: wahaha
+spec: 
+  containers:
+    - name: "nginx-wahaha"
+      image: nginx:1.17.1
+      imagePullPolicy: Never
+      ports:
+        - name: port-name
+          containerPort: 80
+          protocol: TCP
+  affinity:
+    antiPodAffinity: # Pod 反亲和
+      # 硬限制
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: podenv
+                operator: In
+                values:
+                  - "xxx"
+                  - "yyy"
+          topologyKey: kubernetes.io/hostname
+```
+
+### 3.3.6 污点和容忍  
+
+ - 污点  
+
+给node打上污点，拒绝pod部署进来，甚至可以把已有的node驱逐出去。
+命令如下。
+```shell
+# effect 有三种选择
+# PreferNoSchedule: 尽量不往这个node部署，除非没有其他node
+# NoSchedule: 不会部署新的pod在这个node，但不影响旧的node
+# NoExecute: 不会部署新的，且要驱逐旧的
+
+# 命令
+kubectl taint node xxx key=value:effect
+```
+
+一些命令和例子  
+```shell
+# 设置污点  
+kubectl taint node xxx tag=wahaha:PreferNoSchedule
+
+# 去除污点
+kubectl taint node xxx tag=wahaha-
+
+# 去除所有污点
+kubectl taint node xxx tag-
+```
+
+- 容忍  
+
+想让一个pod部署到有污点的node，可以用容忍toleration来配置  
+> kubectl explain pod.spec.tolerations  
+......  
+>>FIELDS:  
+  key       # 对应着要容忍的污点的键，空意味着匹配所有的键  
+  value     # 对应着要容忍的污点的值  
+  operator  # key-value的运算符，支持Equal和Exists（默认）  
+  effect    # 对应污点的effect，空意味着匹配所有影响  
+  tolerationSeconds   # 容忍时间, 当effect为NoExecute时生  效，表示pod在Node上的停留时间
+
+___
+> 当operator为Equal的时候，如果Node节点有多个Taint，那么Pod每个Taint都需要容忍才能部署上去。  
+>> 当operator为Exists的时候，有如下的三种写法：  
+● 容忍指定的污点，污点带有指定的effect：  
+● 容忍指定的污点，不考虑具体的effect：  
+● 容忍一切污点（慎用）：  
+
+```yaml
+# ● 容忍指定的污点，污点带有指定的effect：  
+tolerations:
+  - key: "tag"
+    operator: Exists
+    effect: NoExecute # 添加容忍的规则，这里必须和标记的污点规则相同
+```
+
+```yaml
+# ● 容忍指定的污点，不考虑具体的effect：  
+tolerations:
+  - key: "tag"
+    operator: Exists
+```
+
+```yaml
+# ● 容忍一切污点（慎用）： 
+tolerations:
+  - key: "tag"
+```
+
+案例  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toleration
+  namespace: dev
+spec:
+  containers:
+    - name: nginx-pod
+      image: nginx:1.171.
+      imagePullPolicy: ifNotPresent
+      ports:
+        - name: port-name
+          containerPort: 80
+          protocol: TCP
+  # 容忍
+  tolerations: 
+    - key: "key"
+      value: "wahaha"
+      operator: Equal
+      effect: NoExecute # 添加容忍的规则，必须和标记的污点规则相同
+```
+
+### 3.3.7 Qos  
+- Guaranteed  
+
+```yaml
+# Pod 中的每个容器，包含初始化容器，必须指定内存请求和内存限制，并且两者要相等。
+# Pod 中的每个容器，包含初始化容器，必须指定 CPU 请求和 CPU 限制，并且两者要相等。
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-demo
+  namespace: qos-example
+spec:
+  containers:
+  - name: qos-demo-ctr
+    image: nginx
+    resources:
+      limits:
+        memory: "200Mi"
+        cpu: "700m"
+      requests:
+        memory: "200Mi"
+        cpu: "700m"
+```
+
+- Burstable  
+```yaml
+# Pod 不符合 Guaranteed QoS 类的标准。
+# Pod 中至少一个容器具有内存或 CPU 请求，但是值不相等。
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-demo-2
+  namespace: qos-example
+spec:
+  containers:
+  - name: qos-demo-2-ctr
+    image: nginx
+    resources:
+      limits:
+        memory: "200Mi"
+      requests:
+        memory: "100Mi"
+```
+
+- BestEffort  
+```yaml
+# Pod 中的容器必须没有设置内存和 CPU 限制或请求
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-demo-3
+  namespace: qos-example
+spec:
+  containers:
+  - name: qos-demo-3-ctr
+    image: nginx
+```
+
+- 应用  
+
+一旦出现OOM，kubernetes为了保证服务的可用，会先删除QoS为BestEffort的Pod，然后删除QoS为Burstable的Pod，最后删除QoS为Guaranteed 的Pod。
+
+# 4 Pod控制器  
+## 4.1 介绍  
+
+常见控制器  
+
+- ReplicationController：比较原始的Pod控制器，已经被废弃，由ReplicaSet替代。
+- ReplicaSet：保证指定数量的Pod运行，并支持Pod数量变更，镜像版本变更。
+- Deployment：通过控制ReplicaSet来控制Pod，并支持滚动升级、版本回退。
+- Horizontal Pod Autoscaler：可以根据集群负载自动调整Pod的数量，实现削峰填谷。
+- DaemonSet：在集群中的指定Node上都运行一个副本，一般用于守护进程类的任务。
+- Job：它创建出来的Pod只要完成任务就立即退出，用于执行一次性任务。
+- CronJob：它创建的Pod会周期性的执行，用于执行周期性的任务。
+- StatefulSet：管理有状态的应用。
+
+## 4.2 ReplicaSet （RS）
+主要作用是保证一定数量的pod能正常运行，如果故障了，就会控制pod重启  
+
+- 资源文件  
+```yaml
+apiVersion: app
+kind: ReplicaSet
+metadata:
+  name: demo
+  namespace: dev
+  labels: # 这个是控制器本身的标签，不是标签选择器
+    controller: replicaSet
+spec:
+  replicas: 3 # pod的数量，副本数量
+  selector: # 选择器，这个才是真正用来选择标签的
+    matchLabels:
+      app: nginx-pod
+    matchExpressions:
+      - {key: app, operator: In, values: ["xxx", "yyy"]}
+template: # 这个就是pod的配置了,因为已经是pod了所以kind就不用写，直接metadata开始
+  metadata:
+    labels:
+      app: nginx-pod
+  spec:
+    containers:
+      - name: nginx
+        image: nginx:1.17.1
+        imagePullPolicy: Always
+        ports:
+          - name: nginx-port
+            containerPort: 80
+            protocol: TCP
+```
+
+- 扩缩容  
+
+***修改manifest文件***
+```shell
+kubectl edit rs pc-replicaset -n dev
+
+# 然后修改replica的数量，那么就会自动增加扩缩容了
+```
+
+***命令行***
+```shell
+kubectl scale rs rs pc-replicaset --replicas=6 -n dev
+```
+
+## 4.3 Deployment (Deploy)  
+
+deploy并不直接管理pod，而是通过replicaSet来间接管理Pod.  
+功能有：rs的所有功能，发布的停止与继续，版本滚动更新和版本回退
