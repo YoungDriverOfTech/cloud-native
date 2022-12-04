@@ -117,7 +117,6 @@ spec:
     image: nginx:1.17.2
 ```
 
-
 ```shell
 liangxiaole@ryoushous-MBP yaml % kubectl create -f nginxpod-1.1.2.yaml 
 namespace/dev created
