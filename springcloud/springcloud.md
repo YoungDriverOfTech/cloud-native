@@ -1,6 +1,7 @@
 # 1. Eureka
 ## 1.1 项目创建  
-- 创建maven项目，修改pom文件如下所示  
+### 1.1.1 创建maven项目，修改pom文件如下所示  
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -77,7 +78,7 @@
 </project>
 ```
 
-- 创建子模块 eurekaserver  
+### 1.1.2 创建子模块 eurekaserver  
 
 要让这个模块成为一个注册中心。其配置如下
 
@@ -151,3 +152,65 @@ public class EurekaServerApplication {
 }
 ```
 
+### 1.1.3 Eureka Client  
+- 创建module，pom文件如下  
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>eurekaclient</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+- 配置文件  
+添加eureka client的相关配置  
+
+```yml
+server:
+  port: 8010
+spring:
+  application:
+    name: provider
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+```
+`spring.application.name`: 当前服务注册在eureka server上的名称
+`eureka.client.service-url.defaultZone`: 注册中心的访问地址
+`eureka.instance.preder-ip-address`: 是否将当前服务的IP注册到eureka server
+
+- 创建启动类  
+```java
+@SpringBootApplication
+public class ProvideApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ProvideApplication.class, args);
+    }
+}
+```
