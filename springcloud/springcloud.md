@@ -214,3 +214,36 @@ public class ProvideApplication {
     }
 }
 ```
+
+### 1.1.4 RestTamplate 的使用  
+服务之间的相互调用是通过这个服务实现的。    
+
+- 什么是restTemplate？  
+
+是Spring框架停工的基于rest的服务组件，对http请求和响应进行了封装。提供了很多访问rest服务的方法。可以简单代码的开发和配置。
+
+- 怎么使用？  
+
+创建maven模块，pom文件引入响应的依赖. 因为父工程已经引入了boot，所以这个模块什么也不引入也行。
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>resttemplate</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+</project>
+```
