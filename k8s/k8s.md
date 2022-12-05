@@ -1449,3 +1449,193 @@ kubectl scale rs rs pc-replicaset --replicas=6 -n dev
 
 deploy并不直接管理pod，而是通过replicaSet来间接管理Pod.  
 功能有：rs的所有功能，发布的停止与继续，版本滚动更新和版本回退
+
+资源清单  
+
+```yaml
+apiVersion: apps/v1 # 版本号 
+kind: Deployment # 类型 
+metadata: # 元数据 
+  name: # rs名称 
+  namespace: # 所属命名空间 
+  labels: #标签 
+    controller: deploy 
+spec: # 详情描述 
+  replicas: 3 # 副本数量 
+  revisionHistoryLimit: 3 # 保留历史版本，默认为10 
+  paused: false # 暂停部署，默认是false 
+  progressDeadlineSeconds: 600 # 部署超时时间（s），默认是600 
+  strategy: # 策略 
+    type: RollingUpdate # 滚动更新策略 
+    rollingUpdate: # 滚动更新 
+      maxSurge: 30% # 最大额外可以存在的副本数，可以为百分比，也可以为整数 maxUnavailable: 30% # 最大不可用状态的    Pod 的最大值，可以为百分比，也可以为整数 
+  selector: # 选择器，通过它指定该控制器管理哪些pod 
+    matchLabels: # Labels匹配规则 
+      app: nginx-pod 
+    matchExpressions: # Expressions匹配规则 
+      - {key: app, operator: In, values: [nginx-pod]} 
+  template: # 模板，当副本数量不足时，会根据下面的模板创建pod副本 
+    metadata: 
+      labels: 
+        app: nginx-pod 
+    spec: 
+      containers: 
+      - name: nginx 
+        image: nginx:1.17.1 
+        ports: 
+        - containerPort: 80
+```
+
+### 4.3.1 创建deployment  
+```yaml
+apiVersion: app/v1
+kind: Deployment
+metadata:
+  name: nginx-deploy
+  namespace: dev
+spec:
+  replicas: 3 # 副本数量
+  selector:   # 选择器
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx-pod
+          image: nginx:1.17.1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+```
+
+### 4.3.2 扩缩容  
+
+```shell
+kubectl scale deploy nginx-deploy --replicas=5 -n dev
+```
+
+### 4.3.3 镜像更新  
+- 重建更新  
+在创建出新的Pod之前会先杀掉所有已经存在的Pod
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pc-deployment
+  namespace: dev
+  labels:
+    app: deploy
+template:
+  replicas: 3
+  strategy: # 镜像更新策略
+    type: Recreate # 在创建出新的镜像之前会杀掉旧的
+  selector:
+    matchLabels:
+      app: deploy
+  spec: ... # pod 那一套
+```
+
+更新命令  
+```shell
+kubectl apply -f pc-deployment.yaml
+```
+
+镜像升级  
+```shell
+kubectl set image deployment pc-deployment nginx=nginx:1.17.2 -n dev
+```
+
+升级过程  
+```yaml
+kubectl get pod -n dev
+```
+
+- 滚动更新  
+
+> RollingUpdate：滚动更新，就是杀死一部分，就启动一部分，在更新过程中，存在两个版本的Pod  
+rollingUpdate：当type为RollingUpdate的时候生效，用于为rollingUpdate设置参数，支持两个属性：  
+>>maxUnavailable：用来指定在升级过程中不可用的Pod的最大数量，默认为25%。  
+maxSurge： 用来指定在升级过程中可以超过期望的Pod的最大数量，默认为25%。
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+demtadata:
+  name: pc-deploy
+  namespace: dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-dev
+  strategy:
+    type: RollingUpdate # 镜像滚动升级
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  template:
+    ... # pod
+```
+
+### 4.3.4 版本回退  
+
+deploy支持升级过程中暂停，继续以及会滚等多种功能  
+```shell
+# 相关功能  
+kubectl rollout 参数 deploy xx # 支持以下的选择  
+# status 显示当前升级状态
+# history  显示升级历史记录
+# pause 暂停版本升级
+# resume 继续暂停的升级
+# restart 重启升级过程
+# undo 会滚到上一个版本（可以使用 --to-revision会滚到指定版本）
+```
+
+- 查看状态  
+```shell
+kubectl rollout status deployment pc-deployment -n dev
+```
+
+- 查看升级历史记录
+```shell
+kubectl rollout history deployment pc-deployment -n dev
+```
+
+- 版本回退  
+```shell
+# 可以使用-to-revision=1回退到1版本，如果省略这个选项，就是回退到上个版本，即2版本
+kubectl rollout undo deployment pc-deployment --to-revision=1 -n dev
+```
+
+# 5 Service  
+service给所有pod/控制器提供访问的入口  
+资源清单  
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-name
+  namespace: dev
+spec:
+  selector:
+    app: nginx
+  type: NodePort
+  clusterIP: # 虚拟服务的IP地址
+  sessionAffinity: # session亲和性，支持ClientIP、None两个选项，默认值为None
+  ports: # 端口信息
+    - port: 8080 # Service端口
+      protocol: TCP # 协议
+      targetPort : # Pod端口
+      nodePort:  # 主机端口
+```
+
+> spec.type的说明：  
+● ClusterIP：默认值，它是kubernetes系统自动分配的虚拟IP，只能在集群内部访问。  
+● NodePort：将Service通过指定的Node上的端口暴露给外部，通过此方法，就可以在集群外部访问服务。  
+● LoadBalancer：使用外接负载均衡器完成到服务的负载分发，注意此模式需要外部云环境的支持。  
+● ExternalName：把集群外部的服务引入集群内部，直接使用。  
+
