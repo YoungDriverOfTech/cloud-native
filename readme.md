@@ -5,4 +5,4 @@
 [k8s笔记](./k8s/k8s.md) 
 
 # spring cloud
-[k8s笔记](./springcloud/springcloud.md) 
+[spring cloud笔记](./springcloud/springcloud.md) 
