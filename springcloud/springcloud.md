@@ -319,3 +319,104 @@ public class ConsumerApplication {
 }
 
 ```
+
+# 2. 服务网关  
+
+ 完成一个业务时，客户端需要调用多个微服务。那就需要记住多个不同微服务的地址（URL），不便管理，且每个微服务都要进行安全验证，而且存在跨域的问题。  
+ 可以在客户端和微服务之间建立一个网关（就类似于nginx），客户端只需要和网关打交道就行了。  
+
+ springcloud集成了zuul组件，通过它实现了服务网关  
+
+ ## 2.1 什么事zuul  
+ 是netflix提供的一个开源api网关服务器，是客户端和后端所有请求的中间层，对外开发一个api，将所有的请求导入统一的入口，屏蔽了服务端的具体实现逻辑，zuul可以实现反向代理的功能。在网关内部实现动态路由，身份认证，ip过滤，数据监控等功能。  
+
+ ## 2.2 实现  
+ - 创建工程  
+ ```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>zuul</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!--    需要注册为微服务    -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+
+        <!--    zuul的依赖    -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-zuul</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+
+</project>
+ ```
+
+ - 配置文件  
+ 
+ 只要访问请求的url中含有/p/, 那么就可以直接访问到provider
+ ```yml
+server:
+  port: 8030
+spring:
+  application:
+    name: gateway
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+# 配置服务和网关的映射
+zuul:
+  routes:
+    provider: /p/**
+
+ ```
+
+ - 创建启动类  
+
+`@EnableZuulProxy`: 包含了`@EnableZuulServer`设置该类是网关的启动类
+`@EnableAutoConfiguration`: 可以帮助springboot应用将所有服务条件的`@Configuration`加载到当前springboot创建并且使用的ioc容器中。
+ ```java
+package com.scp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.cloud.netflix.zuul.EnableZuulProxy;
+
+@EnableZuulProxy
+@EnableAutoConfiguration
+public class ZuulApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ZuulApplication.class, args);
+    }
+}
+
+ ```
+
+通过网关访问服务  
+> http://localhost:8030/p/student/findAll
+
+
+- Zuul还自带了负载均衡  
+
+修改provider，使其提供两个实例。 启动多个provider，可以在eureka里面看到一共几个实例。
