@@ -420,3 +420,85 @@ public class ZuulApplication {
 - Zuul还自带了负载均衡  
 
 修改provider，使其提供两个实例。 启动多个provider，可以在eureka里面看到一共几个实例。
+
+
+# 3. Ribbon 负载均衡  
+
+## 3.1 什么是Ribbon  
+
+springcloud Ribbon是负载均衡的解决方案，由netflix发布的负载均衡器，spring cloud ribbon是基于netflix ribbon来实现的，是一个用于对http请求进行控制的负载均衡客户端。  
+
+在注册中心对ribbon进行注册之后，ribbon可以基于负载均衡算法，如：轮询，随机，加权轮询，加权随机。帮助服务消费者自动的调用接口。 开发者也可以根据具体需求自定义ribbon的负载均衡算法。  
+实际开发中，springcloud ribbon需要结合spring cloud eureka来使用。Eureka server提供所有可以调用的服务提供者的列表，ribbon基于算法从这些服务提供者中，选择要调用的具体实例。  
+
+## 3.2 实现  
+- 创建module，添加pom依赖  
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>ribbon</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+- 配置文件  
+```yml
+server:
+  port: 8040
+spring:
+  application:
+    name: ribbon
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
+```
+
+- 启动类  
+```java
+package com.scp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.client.RestTemplate;
+
+@SpringBootApplication
+public class RibbonApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(RibbonApplication.class, args);
+    }
+    
+    @Bean
+    @LoadBalanced // 这个就是负载均衡器
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+}
+```
+
