@@ -719,3 +719,4 @@ public interface FeignProviderClient {
     public String index();
 }
 ```
+
