@@ -649,3 +649,73 @@ public class FeignHandler {
 }
 
 ```
+
+## 4.5 Feign的熔断  
+
+如果provider down调了，不能返回white page。 那么feign就要有熔断机制，给客户好的感受，不能让客户看到white page
+
+- 配置文件里面的配置
+
+```yml
+server:
+  port: 8050
+spring:
+  application:
+    name: feign
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+# -----熔断机制------
+feign:
+  hystrix:
+    enabled: true
+# -----熔断机制------
+```
+
+- 创建FeignProviderClient的实现类   
+
+这个类来处理容错的处理逻辑，通过@Component注解将Feign Error实例注入IOC中。  
+```java
+package com.scp.feign.impl;
+
+import com.scp.entity.Student;
+import com.scp.feign.FeignProviderClient;
+import org.springframework.stereotype.Component;
+
+import java.util.Collection;
+
+@Component
+public class FeignError implements FeignProviderClient {
+
+    // 访问这些方法的时候如果出错，就返回这个类里面的内容
+    @Override
+    public Collection<Student> findAll() {
+        return null;
+    }
+
+    @Override
+    public String index() {
+        return "服务器正在维护";
+    }
+}
+
+```
+
+- 在FeignProviderClient定义处通过@FeignClient的fallback属性设置映射  
+
+```java
+@FeignClient(value = "provider", fallback = FeignError.class) // fallback 来配置
+public interface FeignProviderClient {
+
+    // 访问微服务里面的方法，不用写实现
+    @GetMapping("/student/findAll")
+    public Collection<Student> findAll();
+
+    // 访问微服务里面的方法，不用写实现
+    @GetMapping("/student/index")
+    public String index();
+}
+```
