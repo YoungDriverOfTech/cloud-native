@@ -502,3 +502,150 @@ public class RibbonApplication {
 }
 ```
 
+# 4. Feign  
+## 4.1 什么是feign  
+
+和ribbon一样，也是由netflix提供的，是一个声明式的，模版化的web service客户端，简化了开发者编写web服务客户端的操作，开发者可以通过简单的借口和注解来调用http api。 Spring cloud feign 整合了ribbon和hystrix，具有可插拔，基于注解，负载均衡，服务熔断等一系列的便捷功能。  
+
+相比较于ribbon + resttamplate的方式，feign可以大大简化代码的开发，feign支持多种注解，包括自身的注解，JAX-RS注解，Spring MVC注解， springcloud对feign进行了优化，整合了ribbon和eureka，从而让feign的使用更加的方便。
+
+## 4.2 ribbon和feign的区别  
+
+- ribbon 是一个通用的http客户端工具，feign是基于ribbon来实现的
+
+## 4.3 feign的特点  
+- feign是一个声明式的web service客户端
+- 支持feign注解，spring mvc注解，jax-rs注解
+- feign基于ribbon来实现的，使用起来更加简单
+- feign集成了hystrix，具备服务熔断的功能。
+
+## 4.4 实现  
+- 创建module  
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>feign</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+- 配置文件  
+```yml
+server:
+  port: 8050
+spring:
+  application:
+    name: feign
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+```
+
+- 启动类  
+
+```java
+package com.scp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@SpringBootApplication
+@EnableFeignClients
+public class FeignApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(FeignApplication.class, args);
+    }
+}
+
+```
+
+- 创建声明式接口
+
+```java
+package com.scp.feign;
+
+import com.scp.entity.Student;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import java.util.Collection;
+
+// 访问注册中心中注册的provider服务
+@FeignClient(value = "provider")
+public interface FeignProviderClient {
+    
+    // 访问微服务里面的方法，不用写实现
+    @GetMapping("/student/findAll")
+    public Collection<Student> findAll();
+
+    // 访问微服务里面的方法，不用写实现
+    @GetMapping("/student/index")
+    public String index();
+}
+
+```
+
+- feign的controller
+```java
+package com.scp.controller;
+
+import com.scp.entity.Student;
+import com.scp.feign.FeignProviderClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Collection;
+
+@RestController
+@RequestMapping("/feign")
+public class FeignHandler {
+
+    @Autowired
+    private FeignProviderClient feignProviderClient;
+
+    @GetMapping("/findAll")
+    public Collection<Student> findAll() {
+        return feignProviderClient.findAll();
+    }
+
+    @GetMapping("/index")
+    public String index() {
+        return feignProviderClient.index();
+    }
+}
+
+```
