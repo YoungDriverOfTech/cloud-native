@@ -905,7 +905,7 @@ public interface FeignProviderClient {
 >> http://localhost:8060/hystrix
 >> 输入要监控的地址节点，即上面block的url，名字随便取就能看数据监控了
 
-# 6. Spring Cloud配置中心  
+# 6. Spring Cloud本地配置中心  
 Spring Cloud Config, 通过服务端可以为多个客户端提供配置服务。Spring Cloud Config可以将配置文件存放在本地，也可以将配置文件存在远程的Git仓库。创建Config Server，通过它管理所有的配置文件。  
 
 ## 6.1 本地文件配置系统  
@@ -1071,3 +1071,95 @@ public class NativeConfigHandler {
 }
 
 ```
+
+# 7. Spring Cloud远程配置中心  
+
+## 7.1 创建配置文件，以及上传github
+在根目录下面创建一个文件夹（注意不是module），然后添加配置如下，再上传到github  
+```yml
+server:
+  port: 8070
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka
+spring:
+  application:
+    name: configclient
+```
+
+## 7.2 搭建Config Server
+
+- 新建module  
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>configserver</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-server</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+
+</project>
+```
+
+- 配置文件  
+```yml
+server:
+  port: 8888
+spring:
+  application:
+    name: configserver
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/YoungDriverOfTech/cloud-native-config-client.git
+          searchPaths: config
+          username: # username
+          password: # password
+      label: master
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+```
+
+- 启动类  
+```java
+package com.scp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.config.server.EnableConfigServer;
+
+@SpringBootApplication
+@EnableConfigServer
+public class ConfigServerApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ConfigServerApplication.class, args);
+    }
+}
+
+```
+
+## 7.3 创建Config Client  
