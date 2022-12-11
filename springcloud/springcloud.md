@@ -1226,5 +1226,39 @@ eureka:
 
 - 创建启动类  
 ```java
+package com.scp;
 
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ConfigClientApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ConfigClientApplication.class, args);
+    }
+}
+
+```
+
+- Handler 
+
+```java
+package com.scp.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/hello")
+public class HelloHandler {
+
+    @Value("${server.port}")
+    private String port;
+
+    @RequestMapping("/index")
+    public String index() {
+        return this.port;
+    }
+}
 ```
