@@ -814,7 +814,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: 'hystrix-stream'
+        include: 'hystrix.stream'
 ```
 
 - 启动类  
@@ -838,4 +838,69 @@ public class HystrixApplication {
 }
 ```
 `@EnableCircuitBreaker` 声明启用数据监控
-`@EnableHystrixDashboard` 声明启用可视化的数据监控
+`@EnableHystrixDashboard` 声明启用可视化的数据
+
+- controller
+```java
+package com.scp.controller;
+
+import com.scp.entity.Student;
+import com.scp.feign.FeignProviderClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Collection;
+
+@RestController
+@RequestMapping("/hystrix")
+public class HystrixHandler {
+
+    @Autowired
+    private FeignProviderClient feignProviderClient;
+
+    @GetMapping("/findAll")
+    public Collection<Student> findAll() {
+        return feignProviderClient.findAll();
+    }
+
+    @GetMapping("/index")
+    public String index() {
+        return feignProviderClient.index();
+    }
+}
+
+```
+
+- feign
+```java
+package com.scp.feign;
+
+import com.scp.entity.Student;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import java.util.Collection;
+
+// 访问注册中心中注册的provider服务
+@FeignClient(value = "provider")
+public interface FeignProviderClient {
+
+    // 访问微服务里面的方法，不用写实现
+    @GetMapping("/student/findAll")
+    public Collection<Student> findAll();
+
+    // 访问微服务里面的方法，不用写实现
+    @GetMapping("/student/index")
+    public String index();
+}
+
+```
+
+> 使用如下url来监视api的运行情况
+>> http://localhost:8060/actuator/hystrix.stream  
+
+> 使用如下url来监视api的运行情况(可视化)
+>> http://localhost:8060/hystrix
+>> 输入要监控的地址节点，即上面block的url，名字随便取就能看数据监控了
