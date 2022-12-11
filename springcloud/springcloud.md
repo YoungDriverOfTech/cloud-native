@@ -1262,3 +1262,75 @@ public class HelloHandler {
     }
 }
 ```
+
+# 8. 服务跟踪  
+Spring Cloud Zipkin是可以采集并且更总分布式系统中请求数据的组件。让开发者可以更加直观的监控到请求在各个微服务所耗费的时间等。包含Zipkin Server和Zipkin Client。  
+
+## 8.1 Zipkin服务端搭建  
+- 创建模块 
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>zipkin</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.zipkin.java</groupId>
+            <artifactId>zipkin-server</artifactId>
+            <version>2.9.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.zipkin.java</groupId>
+            <artifactId>zipkin-autoconfigure-ui</artifactId>
+            <version>2.9.4</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+- 配置文件  
+```yml
+server:
+  port: 9090
+```
+
+- 启动类  
+```java
+package com.scp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import zipkin.server.internal.EnableZipkinServer;
+
+@SpringBootApplication
+@EnableZipkinServer
+public class ZipkinApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ZipkinApplication.class, args);
+    }
+}
+
+```
+`@EnableZipkinServer` 声明启动zipkin server
+
+## 8.2 Zipkin客户端搭建  
+
+- 创建module  
