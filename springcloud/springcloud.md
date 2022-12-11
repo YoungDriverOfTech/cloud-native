@@ -908,7 +908,7 @@ public interface FeignProviderClient {
 # 6. Spring Cloud配置中心  
 Spring Cloud Config, 通过服务端可以为多个客户端提供配置服务。Spring Cloud Config可以将配置文件存放在本地，也可以将配置文件存在远程的Git仓库。创建Config Server，通过它管理所有的配置文件。  
 
-## 6.1 本地文件系统  
+## 6.1 本地文件配置系统  
 
 - 创建config server模块  
 ```xml
@@ -959,5 +959,44 @@ spring:
 # profiles.active 配置文件的获取方式，native表示从本地去去
 # cloud.config.server.native.search-locations 本地配置文件存放的路径
 # classpath 指的就是resources，那么在resources文件夹下面创建shared文件夹，然后把配置文件放入shared里面，就能取到配置
+```
+
+- shared  
+在resources文件夹下面创建shared文件夹，并且创建configclient-dev.yml
+
+```yaml
+server:
+  port: 8070
+foo: foo version 1
+```
+
+- 创建启动类  
+```java
+package com.scp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.config.server.EnableConfigServer;
+
+@SpringBootApplication
+@EnableConfigServer
+public class NativeConfigServerApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(NativeConfigServerApplication.class, args);
+    }
+}
+
+```
+
+`@EnableConfigServer` 声明配置中心。
+
+## 6.2 创建客户端   
+
+读取本地配置中心的配置文件  
+
+- 创建模块
+
+```xml
+
 ```
 
