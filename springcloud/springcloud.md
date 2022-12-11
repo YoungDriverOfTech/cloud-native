@@ -793,4 +793,28 @@ hystrix 数据监控需要结合spring boot actuator组件来使用，actuator�
 </project>
 ```
 
-- 创建配置文件
+- 创建配置文件  
+
+```yml
+server:
+  port: 8060
+spring:
+  application:
+    name: hystrix
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+feign:
+  hystrix:
+    enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: 'hystrix-stream'
+```
+
+- 启动类  
