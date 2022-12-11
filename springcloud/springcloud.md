@@ -997,6 +997,77 @@ public class NativeConfigServerApplication {
 - 创建模块
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
 
+    <artifactId>nativeconfigclient</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+
+</project>
 ```
 
+- 配置文件  
+bootstrap.yml 通过这个配置文件来读取本地配置中心的相关信息，这个名字是固定的。  
+
+```yaml
+spring:
+  application:
+    name: configclient
+  profiles:
+    active: dev
+  cloud:
+    config:
+      uri: http://localhost:8762
+      fail-fast: true
+# 查找的方法是把name和active用-连接起来，组成一个文件名字，然后去配置中心找。那么组成的名字就是 【configclient-dev】
+# cloud.config.url 去哪里找配置文件，配置本地 Config Server的访问路径
+# fail-fast 设置客户端优先判断Config Server是否获取正常
+```
+
+- 启动类  
+
+```java
+package com.scp.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/native")
+public class NativeConfigHandler {
+
+    @Value("${server.port}")
+    private String port;
+
+    @Value("${foo}")
+    private String foo;
+
+    @RequestMapping("/index")
+    public String index() {
+        return this.port + "-" + this.foo;
+    }
+}
+
+```
