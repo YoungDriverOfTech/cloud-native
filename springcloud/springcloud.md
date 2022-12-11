@@ -904,3 +904,60 @@ public interface FeignProviderClient {
 > 使用如下url来监视api的运行情况(可视化)
 >> http://localhost:8060/hystrix
 >> 输入要监控的地址节点，即上面block的url，名字随便取就能看数据监控了
+
+# 6. Spring Cloud配置中心  
+Spring Cloud Config, 通过服务端可以为多个客户端提供配置服务。Spring Cloud Config可以将配置文件存放在本地，也可以将配置文件存在远程的Git仓库。创建Config Server，通过它管理所有的配置文件。  
+
+## 6.1 本地文件系统  
+
+- 创建config server模块  
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>nativeconfigserver</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-server</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+- 配置文件
+
+```yml
+server:
+  port: 8762
+spring:
+  application:
+    name: nativeconfigserver
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: classpath:/shared
+# profiles.active 配置文件的获取方式，native表示从本地去去
+# cloud.config.server.native.search-locations 本地配置文件存放的路径
+# classpath 指的就是resources，那么在resources文件夹下面创建shared文件夹，然后把配置文件放入shared里面，就能取到配置
+```
+
