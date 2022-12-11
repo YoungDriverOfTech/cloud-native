@@ -1291,6 +1291,11 @@ Spring Cloud Zipkin是可以采集并且更总分布式系统中请求数据的�
 
     <dependencies>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>io.zipkin.java</groupId>
             <artifactId>zipkin-server</artifactId>
             <version>2.9.4</version>
@@ -1334,3 +1339,97 @@ public class ZipkinApplication {
 ## 8.2 Zipkin客户端搭建  
 
 - 创建module  
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>zipkinclient</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-zipkin</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+- 配置文件  
+
+```yml
+server:
+  port: 8090
+spring:
+  application:
+    name: zipkinclient
+  sleuth:
+    web:
+      client:
+        enabled: true
+    sampler:
+      probability: 1.0
+  zipkin:
+    base-url: http://localhost:9090/
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+# spring.sleuth.web.client.enable 设置开启请求跟踪
+# spring.sleuth.sampler.probability 设置采样比例，默认是1.0
+# spring.zipkin.base-url Zipkin Server的地址
+```
+
+- 创建启动类  
+```java
+package com.scp;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ZipkinClientApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ZipkinClientApplication.class, args);
+    }
+}
+
+```
+
+- Handler
+```java
+package com.scp.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/zipkin")
+public class ZipkinHandler {
+
+    @Value("${server.port}")
+    private String port;
+
+    @GetMapping("/index")
+    public String index() {
+        return this.port;
+    }
+}
+
+```
