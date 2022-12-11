@@ -720,3 +720,77 @@ public interface FeignProviderClient {
 }
 ```
 
+# 5. Hystrix 容错机制  
+
+## 5.1 特点
+
+在不改变各个微服务调用关系的前提下，针对错误情况进行预先处理。
+- 设计原则  
+    - 服务隔离机制
+    - 服务降级机制
+    - 熔断机制
+    - 提供实时的监控和报警功能
+    - 提供实时配置修改功能
+
+hystrix 数据监控需要结合spring boot actuator组件来使用，actuator提供了对服务的健康监控，数据统计功能。可以通过hystrix-stream节点获取监控的请求数据，同时提供了可视化的监控假面。
+
+## 5.2 实现 
+
+- 创建自模块  
+```xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>scpractice</artifactId>
+        <groupId>com.scprac</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>hystrix</artifactId>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <version>2.0.7.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-hystrix-dashboard</artifactId>
+            <version>2.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+
+</project>
+```
+
+- 创建配置文件
