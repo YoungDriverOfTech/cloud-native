@@ -1611,8 +1611,334 @@ kubectl rollout history deployment pc-deployment -n dev
 kubectl rollout undo deployment pc-deployment --to-revision=1 -n dev
 ```
 
+## 4.4 DaemonSet(DS)
+
+### 4.4.1 概述  
+保证集群中的每一台或者指定街店上都运行一个副本，一般用于日志收集，节点监控等场景。  
+
+- 资源清单  
+
+```yaml
+apiVersion: v1
+kind: DaemonSet
+metadata:
+  name: ds
+  namespaces: dev
+  labels:
+    controller: ds
+spec:
+  revisionHistoryLimit: 3 # 保留历史版本
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1 # 最大不可用状态的pod的最大值，可为百分比或者正数
+  selector:
+    matchLabels:
+      app: nginx-pod
+    matchExpressions:
+      - key: app
+        operator: In
+        valus:
+          - nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.17.1
+          imagePullPolicy: Always
+          ports:
+            - port: 80
+```
+
+### 4.4.2 创建  
+```yaml
+apiVersion: app
+kind: DaemonSet
+metadata:
+  name: pc-daemonset
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadate:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.17.1
+          ports:
+            - port: 80
+```
+
+```shell
+kubectl create -f pd-daemonset.yaml
+```
+
+### 4.4.3 查看  
+```shell
+kubectl get ds -n dev -o wide
+```
+
+### 4.4.4 删除  
+```shell
+kubectl delete ds pd-daemonset.yaml -n dev
+```
+
+## 4.5 Job
+### 4.5.1 概述
+主要负责批量处理短暂的一次性任务。  
+特点：1 当job创建的pod执行成功后，job回记录成功结束的pod的数量 2 成功结束的pod达到一定数量的同时，job将完成执行。
+
+- 资源清单  
+```yaml
+apiVersion: v1
+kind: Job
+metadata:
+  name: job
+  namespace: dev
+  labels:
+    controller: job
+spec:
+  completions: 1 # 指定job需要成功运行pod的总次数，默认1
+  parallelism: 1 # 自定job在同一时刻应该并发运行的数量，默认1
+  activeDeadlineSeconds: 30 # job运行最大时长，超过的话k8s会终止
+  backoffLimit: 6 # job失败后重试次数 默认6
+  manualSelector: true # 是否可以使用selector选择器选择pod，默认false
+  selector:
+    matchLabels:
+      app: counter-pod
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - counter-pod
+  template: 
+    metadata:
+      labels:
+        app: counter-pod
+    spec:
+      restartPolicy: Never # 重启策略只能是Never或者OnFailure
+      containers:
+        - name: counter
+          image: busybox:1.30
+          command: ["/bin/sh", "-c" "....."]
+```
+
+> 关于模板中的重启策略的说明：  
+>> ● 如果设置为OnFailure，则Job会在Pod出现故障的时候重启容器，而不是创建Pod，failed次数不变。  
+● 如果设置为Never，则Job会在Pod出现故障的时候创建新的Pod，并且故障Pod不会消失，也不会重启，failed次数+1。  
+● 如果指定为Always的话，就意味着一直重启，意味着Pod任务会重复执行，这和Job的定义冲突，所以不能设置为Always。
+
+
+### 4.5.2 创建Job
+```yaml
+apiVersion: v1
+kind: Job
+metadata:
+  name: pc-job
+  namespace: dev
+spec:
+  manualSelector: true
+  selector:
+    matchLabels:
+      app: counter-pod
+  template:
+    metadata:
+      labels:
+        app: counter-pod
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: counter
+          image: busybox:1.30
+          command: ["..."]
+```
+
+```shell
+kubectl create -f pc-job.yaml
+```
+
+### 4.5.3 查看Job  
+```shell
+kubectl get job -n dev -w
+```
+
+### 4.5.4 删除Job  
+```shell
+kubectl delete -f pc-job.yaml
+```
+
+
+## 4.6 CronJob(CJ)
+
+### 4.6.1 概述  
+CronJob可以在特定的时间点反复去执行job任务  
+
+- 资源清单  
+```yaml
+apiVersion: batch
+kind: CronJob
+metadata:
+  name: name
+  namespace: dev
+  labels:
+    controller: cron-job
+spec:
+  schedule: 0 0 0 0 0 * # cron表达式
+  concurrencyPollicy: # 并发执行策略
+  failedJobsHistoryLimit: # 失败任务的历史记录数 默认1
+  successfulJobsHistoryLimit: # 默认3
+  jobTemplate: # Job控制器模版，用于位cronJob控制器生成job对象
+    metadata: {}
+    spec:
+      completions: 1
+      parallelism: 1
+      activeDeadlineSeconds: 30
+      backoffLimit: 6
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: counter
+              image: busybox:1.30
+              command: ["..."]
+```
+
+> schedule：cron表达式，用于指定任务的执行时间。  
+● */1  *  *  *  *：表示分钟  小时  日  月份  星期。  
+● 分钟的值从0到59。  
+● 小时的值从0到23。  
+● 日的值从1到31。  
+● 月的值从1到12。  
+● 星期的值从0到6，0表示星期日。  
+● 多个时间可以用逗号隔开，范围可以用连字符给出：* 可以作为通配符，/表示每...  
+
+> concurrencyPolicy：并发执行策略  
+● Allow：运行Job并发运行（默认）。  
+● Forbid：禁止并发运行，如果上一次运行尚未完成，则跳过下一次运行。  
+● Replace：替换，取消当前正在运行的作业并使用新作业替换它。  
+
+### 4.6.2 创建CronJob  
+```yaml
+apiVersion: batch
+kind: CronJob
+metadata:
+  name: pc-cronjob
+  namespace: dev
+spec:
+  schedule: "*/1 * * * * "
+  jobTemplate:
+    metadata: {}
+    spec:
+      template: 
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: counter
+              image: busybox:1.17
+              command: ["..."]
+```
+
+### 4.6.3 查看CronJob  
+```shell
+kubectl get cronjob -n dev -w
+```
+
+### 4.6.4 删除CronJob  
+```shell
+kubectl delete -f pc-fronjob.yaml
+```
+
+## 4.7 StatefulSet(有状态)  
+### 4.7.1 概述  
+- 无状态应用  
+  - 认为pod都一样
+  - 没有顺序要求
+  - 不用考虑在哪个node上执行
+  - 随意进行伸缩和扩展
+- 有状态应用
+  - 有顺序要求
+  - 认为每个pod都是不一样的
+  - 需要考虑在哪个Node上运行
+  - 需要按照顺序进行伸缩扩展
+  - 让每个pod都是独立的，保持pod启动顺序和唯一性
+- StatefulSet是Kubernetes提供的管理有状态应用的负载管理控制器。
+- StatefulSet部署需要HeadLinessService（无头服务）。
+- StatefulSet常用来部署RabbitMQ集群、Zookeeper集群、MySQL集群、Eureka集群等。
+
+> 为什么需要HeadLinessService（无头服务）？  
+● 在用Deployment时，每一个Pod名称是没有顺序的，是随机字符串，因此是Pod名称是无序的，但是在StatefulSet中要求必须是有序 ，每一个Pod不能被随意取代，Pod重建后pod名称还是一样的。  
+● 而Pod IP是变化的，所以是以Pod名称来识别。Pod名称是Pod唯一性的标识符，必须持久稳定有效。这时候要用到无头服务，它可以给每个Pod一个唯一的名称 。
+
+### 4.7.2 创建StatefulSet  
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-headliness
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: Node # 经clusterIP设置为Node，即可创建headliness Service
+  type: ClusterIp
+  ports:
+    - port: 80 # Service 端口
+      targetPort: 80 # Pod 端口
+---
+apiVersion: v1
+kind: StatefuleSet
+metadata:
+  name: pc-statefuleSet
+  namespace: dev
+spec:
+  replicas: 3
+  serviceName: service-headliness
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      laebels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.18.1
+          ports:
+            - containerPort: 80
+```
+
+```shell
+kubectl create -f pc-stateful.yaml
+```
+
+### 4.7.3 查看StatefulSet  
+```shell
+kubectl get statefulSet pc-startfulset -n dev -o wide
+```
+
+### 4.7.4 删除  
+```shell
+kubectl delete -f pc-stateful.yaml
+```
+
 # 5 Service  
+## 5.1 service介绍  
+- 在kubernetes中，Pod是应用程序的载体，我们可以通过Pod的IP来访问应用程序，但是Pod的IP地址不是固定的，这就意味着不方便直接采用Pod的IP对服务进行访问。
+
+- 为了解决这个问题，kubernetes提供了Service资源，Service会对提供同一个服务的多个Pod进行聚合，并且提供一个统一的入口地址，通过访问Service的入口地址就能访问到后面的Pod服务。
+
+- Service在很多情况下只是一个概念，真正起作用的其实是kube-proxy服务进程，每个Node节点上都运行了一个kube-proxy的服务进程。当创建Service的时候会通过API Server向etcd写入创建的Service的信息，而kube-proxy会基于监听的机制发现这种Service的变化，然后它会将最新的Service信息转换为对应的访问规则。
 service给所有pod/控制器提供访问的入口  
+
+## 5.2 service类型  
 资源清单  
 ```yaml
 apiVersion: v1
@@ -1639,3 +1965,105 @@ spec:
 ● LoadBalancer：使用外接负载均衡器完成到服务的负载分发，注意此模式需要外部云环境的支持。  
 ● ExternalName：把集群外部的服务引入集群内部，直接使用。  
 
+## 5.3 service使用  
+
+### 5.3.1 环境准备
+
+- 先创建3个pod，标签是app=nginx-pod
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pc-deployment
+  namespace: dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.17.1
+          ports:
+            - containerPort: 80
+```
+
+### 5.3.2 ClusterIP类型  
+- 创建service
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-clusterip
+  namespace: dev
+spec:
+  selector: 
+    app: nginx-pod
+  clusterIP: 10.10.10.10 # service地址，不写会默认生成一个
+  type: ClusterIP
+  ports:
+    - port: 80 # service 端口
+      targetPort: 80 # pod端口
+```
+
+```shell
+kubectl create -f service-clusterip.yaml
+```
+
+- 查看service
+```shell
+kubectl get svc -n dev -o wide
+```
+
+- 查看详细信息  
+```shell
+kubectl describe svc service-clusterip -n dev
+# 打印出来的信息里面，有个EndPoints字段，就是pod的入口
+```
+
+- 查看ipvs映射规则  
+就是查看哪个ip转到哪个ip
+
+```shell
+ipvsadm -Ln
+```
+
+- 删除service
+```shell
+kubectl delete -f service-clusterip.yaml
+```
+
+### 5.3.3 HeadLiness类型  
+- 概述  
+在某些场景中，开发人员可能不想使用Service提供的负载均衡功能，而希望自己来控制负载均衡策略，针对这种情况，kubernetes提供了HeadLinesss Service，这类Service不会分配Cluster IP，如果想要访问Service，只能通过Service的域名进行查询。
+
+- 创建  
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-headliness
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+    clusterIp: None # 将clusterIP设置为None，就可以创建headliness service
+    type: ClusterIP
+    ports:
+      - port: 80
+        targetPort: 80
+```
+
+```shell
+kubectl create -f service-headliness.yaml
+```
+
+- 查看
+```shell
+kubectl describe svc service-headliness -n dev
+```
