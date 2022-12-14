@@ -2067,3 +2067,278 @@ kubectl create -f service-headliness.yaml
 ```shell
 kubectl describe svc service-headliness -n dev
 ```
+
+
+- 查看详情
+```shell
+kubectl describe svc service-headliness -n dev
+```
+
+- 查看域名解析情况  
+```shell
+# 查看pod
+kubectl get pod -n dev
+
+# 进入pod中
+kubectl exec -it pod名字 -n dev /bin/sh
+
+# 查看配置文件
+cat /ect/resolv.conf
+```
+
+### 5.3.4 NodePort类型  
+
+- 概述  
+在之前的案例中，创建的Service的IP地址只能在集群内部才可以访问，如果希望Service暴露给集群外部使用，那么就需要使用到另外一种类型的Service，称为NodePort类型的Service。NodePort的工作原理就是将Service的端口映射到Node的一个端口上，然后就可以通过NodeIP:NodePort来访问Service了。
+
+- 创建
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-nodeport
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+  type: NodePort # 声明类型为NodePort
+  ports:
+    - port: 80 # Service端口
+      targetPort: 80 # pod端口
+      nodePort: 30002 # node端口
+```
+
+```shell
+kubectl create -f service-nodeport.yaml
+```
+
+- 查看  
+```shell
+kubectl get svc service-nodeport -n dev -o wide
+```
+
+- 访问 
+
+```shell
+# 通过url:30002/ 即可访问对应的pod
+```
+
+### 5.3.5 LoadBalancer类型  
+LoadBalancer和NodePort很相似，目的都是向外部暴露一个端口，区别在于LoadBalancer会在集群的外部再来做一个负载均衡设备，而这个设备需要外部环境的支持，外部服务发送到这个设备上的请求，会被设备负载之后转发到集群中。  
+　　　nginx  
+ 　 　　/　　\  
+ nodePort1  nodePort2  
+　　　|　　　　|  
+ pod pod　　pod  pod 
+
+
+### 5.3.6 ExternalName类型  
+
+- 概述  
+ExternalName类型的Service用于引入集群外部的服务，它通过externalName属性指定一个服务的地址，然后在集群内部访问此Service就可以访问到外部的服务了。
+
+- 创建  
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-externalname
+  namespace: dev
+spec:
+  type: ExternalName # Service类型是ExternalName
+  ExternalName: www.google.com
+```
+
+```shell
+kubectl create -f service-externalname.yaml
+```
+
+## 5.4 Ingress  
+
+Service暴露服务有两种方式：NodePort和LoadBalancer，但是他们有一定缺点  
+- nodePort方式会占用很多集群机器端口
+- LoadBalancer 每个service都需要一个LB，且需要k8s之外的设备的支持
+
+基于这种现状，kubernetes提供了Ingress资源对象，Ingress只需要一个NodePort或者一个LB就可以满足暴露多个Service的需求。作用相当于一个nginx  
+
+> ● 可以理解为Ingress里面建立了诸多映射规则，Ingress Controller通过监听这些配置规则并转化为Nginx的反向代理配置，然后对外提供服务。   
+>>  ○ Ingress：kubernetes中的一个对象，作用是定义请求如何转发到Service的规则。
+>>  ○ Ingress Controller：具体实现反向代理及负载均衡的程序，对Ingress定义的规则进行解析，根据配置的规则来实现请求转发，实现的方式有很多，比如Nginx，Contour，Haproxy等。
+
+>● Ingress（以Nginx）的工作原理如下：  
+>>  ○ 用户编写Ingress规则，说明那个域名对应kubernetes集群中的那个Service。  
+>>  ○ Ingress控制器动态感知Ingress服务规则的变化，然后生成一段对应的Nginx的反向代理配置。  
+>>  ○ Ingress控制器会将生成的Nginx配置写入到一个运行着的Nginx服务中，并动态更新。  
+>>  ○ 到此为止，其实真正在工作的就是一个Nginx了，内部配置了用户定义的请求规则。  
+
+### 5.4.1 准备  
+
+- 搭建ingress  
+```shell
+mkdir ingress-controller
+cd ingress-controller
+
+# 下载ingress
+wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/mandatory.yaml
+
+# 创建
+kubectl apply -f ./
+
+```
+
+- 准备service和pod  
+两个service，一个nginx，一个tomcat。分别惯着两个deployment，deoplyment下面各有3个pod
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-pod
+  template:
+    metadata:
+      labels:
+        app: nginx-pod
+    spec:
+      containers:
+        - name: nginx
+          image: ningx:1.17.1
+          ports:
+            - containerPort: 80
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tomcat-deployment
+  namespace: dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tomcat-pod
+  template:
+    metadata:
+      laebels:
+        app: tomcat-pod
+    spec:
+      containers:
+        - name: tomcat
+          image: tomcat:8.6
+          ports:
+            - containerPort: 8080
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: dev
+spec:
+  selector:
+    app: nginx-pod
+  clusterIP: Nonde
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: tomcat-service
+  namespace: dev
+spec:
+  selector:
+    app: tomcat-pod
+  clusterIP: None
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+```
+
+- Http代理  
+```yaml
+apiVersion: extensions/v1betal
+kind: Ingress
+metadata:
+  name: ingress-http
+  namespace: dev
+spec:
+  rules:
+    - host: nginx.wahaha.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: nginx-service
+              servicePort: 80
+    - host: tomcat.wahaha.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: tomcat-service
+              servicePort: 8080
+```
+
+# 6. 存储  
+## 6.1 概述  
+> 容器的生命周期可能很短，会被频繁的创建和销毁。那么容器在销毁的时候，保存在容器中的数据也会被清除。这种结果对用户来说，在某些情况下是不乐意看到的。为了持久化保存容器中的数据，kubernetes引入了Volume的概念。  
+
+> Volume是Pod中能够被多个容器访问的共享目录，它被定义在Pod上，然后被一个Pod里面的多个容器挂载到具体的文件目录下，kubernetes通过Volume实现同一个Pod中不同容器之间的数据共享以及数据的持久化存储。Volume的生命周期不和Pod中的单个容器的生命周期有关，当容器终止或者重启的时候，Volume中的数据也不会丢失。
+
+> kubernetes的Volume支持多种类型，比较常见的有下面的几个：  
+>> 简单存储：EmptyDir、HostPath、NFS。  
+>> 高级存储：PV、PVC。  
+>> 配置存储：ConfigMap、Secret。
+
+## 6.2 基本存储  
+### 6.2.1 EmptyDir
+
+就是一个host的空目录，随机分配，pod销毁时会被删除。  
+> 主要作用：
+>>   临时空间，例如用于某些应用程序运行时所需的临时目录，且无须永久保留。  
+>>   一个容器需要从另一个容器中获取数据的目录（多容器共享目录）。
+
+- 创建  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-emptydir
+  namespace: dev
+spec: 
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      ports:
+        - port: containerPort: 80
+      volumeMounts:  # 将logs-volume挂载到nginx容器中对应的目录，该目录为/var/log/nginx
+        - name: logs-volume
+          mountPaht: /var/log
+    - name: busybox
+      image: busybos:1.30
+      command: ["..."]
+      volumeMount:
+        - name: logs-volume
+          mountPaht: /logs
+  volumes: #  声明volume，name为logs-volume，类型为emptyDir
+    - name: logs-volume
+      emptyDir: {}
+```
+
+```shell
+kubectl create -f volume-emptydir.yaml
+```
+
