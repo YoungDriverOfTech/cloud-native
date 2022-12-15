@@ -6,6 +6,8 @@ ssh -i ./pem ec2-user@publicAddress
 
 # 安装
 ## 环境搭建
+
+### 配置java环境
 ```shell
 # 切换成root用户
 sudo su -
@@ -21,7 +23,7 @@ yum install -y lrzsz
 scp -i ./pem apache-zookeeper-3.5.7.tar.gz jdk-8u202-linux-x64.tar.gz kafka_2.11-2.4.0.tgz ec2-user@ip:/home/ec2-user/software
 
 # 在/opt下创建install目录，把所有的安装包解压在这里面, 剩下两个同理
-tar -zxvf apache-zookeeper-3.5.7.tar.gz -C ../install/
+tar -zxvf apache-zookeeper-3.5.7-bin.tar.gz -C ../install/
 tar -zxvf jdk-8u202-linux-x64.tar.gz -C ../install/
 tar -zxf kafka_2.11-2.4.0.tgz -C ../install/
 
@@ -38,6 +40,66 @@ export PATH=$PATH:$JAVA_HOME/bin
 # 手动刷新配置后，确认java -version  (单横线)
 source /etc/profile
 
+```
 
 
+### 配置并且启动zookeeper
+```shell
+# 进入zookeeper文件夹，修改配置文件
+cd /opt/install/apache-zookeeper-3.5.7/conf
+
+# 默认的配置文件是zoo.cfg, 有一个样例 zoo_sample.cfg，复制一份
+# dataDir 可以修改，一般放在大空间目录下
+dataDir=/tmp/zookeeper
+
+# 进入bin目录查看启动命令。启动失败的话，需要重新下载zookpper的包，名字里面要带有bin的才能正常启动
+./zkServer.sh start
+
+
+```
+
+### 配置并且启动kafka
+- 概念普及  
+> Topic: 虚拟概念，由1到多个partitions组成  
+> partition: 实际消息存储单位  
+> Producer: 消息生产者  
+> Consumer: 消息消费者  
+
+- 配置以及启动
+```shell
+# 要配置ec2 安全组，把9092端口放开
+
+# 进入config文件夹，修改server.properties
+# listeners=PLAINTEXT://:9092 修改为本机器 Public IPv4 DNS
+listeners=PLAINTEXT://Public IPv4 DNS:9092
+
+# #advertised.listeners=PLAINTEXT://your.host.name:9092 修改为本机 Public IPv4 DNS
+advertised.listeners=PLAINTEXT://Public IPv4 DNS:9092
+
+# kafka存放数据到zookeeper的路径
+log.dirs=/tmp/kafka-logs
+
+# 因为zoo装载本机，所以地址用localhost也行
+zookeeper.connect=localhost:2181
+```
+
+## kafka 基本命令  
+```shell
+# 1. 启动kafka (启动后可使用 ps rf | grep kafka  确认)  加上&是让他后台启动
+./bin/kafka-server-start.sh config/server.properties &
+
+# 2. 停止kafka
+./bin/kafka-server-stop.sh
+
+# 3. 创建topic
+./bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic first-topic
+
+# 4. 查看topic
+./bin/kafka-topics.sh --list --zookeeper localhost:2181
+
+# 5. 发送消息 (因为启动的时候用了dns，所以发送消息也要换成dns)
+./bin/kafka-console-producer.sh --broker-list Public IPv4 DNS:9092 --topic first-topic
+
+# 6. 消费消息
+./bin/kafka-console-consumer.sh --bootstrap-server Public IPv4 DNS:9092 --topic first-topic --from-beginning
 ```
