@@ -2342,3 +2342,400 @@ spec:
 kubectl create -f volume-emptydir.yaml
 ```
 
+- 查看  
+```shell
+kubectl get pod volume-emptydir -n dev -o wide
+```
+
+- 查看log  
+```shell
+# -f + pod的名字   -c + 容器的名字
+kubectl logs -f volume-emptydir -n dev -c busybox
+```
+
+### 6.2.2 HostPath
+- 概述  
+EmptyDir中的数据不会被持久化，它会随着Pod的结束而销毁，如果想要简单的将数据持久化到主机中，可以选择HostPath。
+
+- 创建  
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-hostpath
+  namespace: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      imagePullPolicy: ifNotPresent
+      ports:
+        - containerPort: 80
+      volumeMounts:
+        - name: log-volume # 把log-volume（主机上的目录）挂在到容器里面的/var/log
+          mountPath: /var/log
+    - name: busybox
+      image: busybox:1.30
+      imagePullPolicy: Always
+      command: ["..."]
+      volumeMounts:
+        - name: log-volume
+          mountPaht: /logs
+  volumes: # 声明volume，name是log-volume，挂在主机的目录/root/logs下
+    - name: log-volume
+      hostPath: # 类型为hostPath
+        path: /root/logs
+        type: DirectoryOrCreate # 目录存在就用，不存在就创建
+```
+
+> type的值的说明：  
+● DirectoryOrCreate：目录存在就使用，不存在就先创建后使用。  
+● Directory：目录必须存在。  
+● FileOrCreate：文件存在就使用，不存在就先创建后使用。  
+● File：文件必须存在。  
+● Socket：unix套接字必须存在。  
+● CharDevice：字符设备必须存在。  
+● BlockDevice：块设备必须存在。  
+
+```shell
+kubectl create -f volume.hostpath.yaml
+```
+
+- 查看  
+```shell
+kubectl get pod volume-hostpath -n dev -o wide
+```
+
+### 6.2.2 HostPath  
+- 概述  
+
+HostPath虽然可以解决数据持久化的问题，但是一旦Node节点故障了，Pod如果转移到别的Node节点上，又会出现问题，此时需要准备单独的网络存储系统，比较常用的是NFS和CIFS。
+
+NFS是一个网络文件存储系统，可以搭建一台NFS服务器，然后将Pod中的存储直接连接到NFS系统上，这样，无论Pod在节点上怎么转移，只要Node和NFS的对接没有问题，数据就可以成功访问。
+
+- 搭建nfs服务器  
+```shell
+# 在节点上安装nfs服务器
+yum install -y nfs-utils rpcbind
+
+# 准备一个共享目录
+mkdir -pv /root/data/nfs
+
+# 将共享目录以读写权限暴漏给k8s集群的所有主机
+vim /etc/exports
+/root/data/nfs ip地址(rw,no_root_squash)
+
+# 修改权限 
+chmod 777 -R /root/data/nfs
+
+# 记载配置
+exportffs -r
+
+# 启动nfs服务
+systemctl start rpcbind
+systemctl enable rpcbind
+systemctl start nfs
+systemctl enable nfs
+
+# 测试挂在是否成功
+showmount -e ip地址
+
+# 为驱动NFS设备，在k8s集群的节点上面安装nfs服务器
+yum -y install nfs-utils
+
+# 在集群街店上面测试挂在是否成功
+showmount -e ip地址
+```
+
+- 创建pod
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-nfs
+  namespace: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+      volumeMounts:
+        - name: log-volume
+          mountPath: /var/log
+    - name: busybox
+      image: busybox:1.30
+      imagePullPolicy: IfNotPresent
+      command: ["..."]
+      volumeMounts:
+        - name: log-volume
+          mountPath: /logs
+  volumes: 
+    - name: log-volume
+      nfs:
+        server: 0.0.0.0 # nfs服务器地址
+        path: /root/data/nfs # 共享文件路径
+```
+
+```shell
+kubectl create -f volume-nfs.yaml
+```
+
+- 查看  
+```shell
+kubectl get pod volume-nfs -n dev
+```
+
+## 6.3 高级存储  
+
+### 6.3.1 PV/PVC概述    
+> 使用NFS提供存储，此时就要求用户会搭建NFS系统，并且会在yaml配置nfs。由于kubernetes支持的存储系统有很多，要求客户全部掌握，显然不现实。为了能够屏蔽底层存储实现的细节，方便用户使用，kubernetes引入了PV和PVC两种资源对象。
+
+> PV（Persistent Volume）是持久化卷的意思，是对底层的共享存储的一种抽象。一般情况下PV由kubernetes管理员进行创建和配置，它和底层具体的共享存储技术有关，并通过插件完成和共享存储的对接。
+
+> PVC（Persistent Volume Claim）是持久化卷声明的意思，是用户对于存储需求的一种声明。换言之，PVC其实就是用户向kubernetes系统发出的一种资源需求申请。
+
+> 使用了PV和PVC之后，工作可以得到进一步的提升：  
+>> 存储：存储工程师维护。  
+>> PV：kubernetes管理员维护。  
+>> PVC：kubernetes用户维护。  
+
+### 6.3.2 PV  
+
+- 资源清单  
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv2
+spec:
+  nfs: # 存储类型，和底层正则的存储对应
+    path:
+    server:
+  capacity: # 存储能力，目前只支持存储空间的设置
+    storage: 2Gi
+  accessModes: # 访问模式
+    - storageClassName: # 存储类别
+      persistentVolumeReclaimPolicy: # 回收策略
+
+```
+
+> pv的关键配置参数说明：  
+- 存储类型：底层实际存储的类型，kubernetes支持多种存储类型，每种存储类型的配置有所不同。  
+- 存储能力（capacity）：目前只支持存储空间的设置（storage=1Gi），不过未来可能会加入IOPS、吞吐量等指标的配置。  
+- 访问模式（accessModes）：  
+  - 用来描述用户应用对存储资源的访问权限，访问权限包括下面几种方式：  
+    - ReadWriteOnce（RWO）：读写权限，但是只能被单个节点挂载。  
+    - ReadOnlyMany（ROX）：只读权限，可以被多个节点挂载。  
+    - ReadWriteMany（RWX）：读写权限，可以被多个节点挂载。  
+  - 需要注意的是，底层不同的存储类型可能支持的访问模式不同。  
+- 回收策略（ persistentVolumeReclaimPolicy）：  
+  - 当PV不再被使用之后，对其的处理方式，目前支持三种策略：  
+    - Retain（保留）：保留数据，需要管理员手动清理数据。  
+    - Recycle（回收）：清除PV中的数据，效果相当于rm -rf /volume/*。  
+    - Delete（删除）：和PV相连的后端存储完成volume的删除操作，常见于云服务器厂商的存储服务。  
+  - 需要注意的是，底层不同的存储类型可能支持的回收策略不同。  
+- 存储类别（storageClassName）：PV可以通过storageClassName参数指定一个存储类别。  
+  - 具有特定类型的PV只能和请求了该类别的PVC进行绑定。  
+  - 未设定类别的PV只能和不请求任何类别的PVC进行绑定。  
+- 状态（status）：一个PV的生命周期，可能会处于4种不同的阶段。  
+  - Available（可用）：表示可用状态，还未被任何PVC绑定。  
+  - Bound（已绑定）：表示PV已经被PVC绑定。  
+  - Released（已释放）：表示PVC被删除，但是资源还没有被集群重新释放。  
+  - Failed（失败）：表示该PV的自动回收失败。  
+
+
+- 准备工作（NFS环境）  
+```shell
+# 创建目录
+mkdir -pv /root/data/{pv1, pv2, pv3}
+
+# 授权  
+chmod 777 -R /root/data
+
+# 修改/etc/exports
+vim /etc/exports
+/root/data/pv1     IP address(rw,no_root_squash) 
+/root/data/pv2     IP address(rw,no_root_squash) 
+/root/data/pv3     IP address(rw,no_root_squash)
+
+# 重启nfs服务
+systemctl restart nfs
+```
+
+- 创建PV
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv1
+spec:
+  nds: 
+    path: /root/data/pv1
+    server: 0.0.0.0
+  capacity: # 存储能力，目前只支持存储空间的设置
+    storage: 1Gi
+  accessModes: 
+    - ReadWritMany
+  persistentVolumeReclaimPolicy: Retain
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv1
+spec:
+  nds: 
+    path: /root/data/pv2
+    server: 0.0.0.0
+  capacity: # 存储能力，目前只支持存储空间的设置
+    storage: 2Gi
+  accessModes: 
+    - ReadWritMany
+  persistentVolumeReclaimPolicy: Retain
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv1
+spec:
+  nds: 
+    path: /root/data/pv3
+    server: 0.0.0.0
+  capacity: # 存储能力，目前只支持存储空间的设置
+    storage: 3Gi
+  accessModes: 
+    - ReadWritMany
+  persistentVolumeReclaimPolicy: Retain
+```
+
+```shell
+kubectl create -f pv.yaml
+```
+
+- 查看pv
+```shell
+kubectl get pv -o wide
+```
+
+### 6.3.3 PVC
+PVC是资源的申请，用来声明对存储空间、访问模式、存储类别需求信息
+
+- 资源清单  
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc
+  namespace: dev
+spec:
+  accessModes: # 访问模式
+    - ReadWriteMany
+  selector: 采用标签对pv进行选择
+  storageClassNme: # 存储类别
+  resources: # 请求类别
+    requests:
+      storage: 5Gi
+```
+
+> PVC的关键配置参数说明：  
+- 访客模式（accessModes）：用于描述用户应用对存储资源的访问权限。  
+- 用于描述用户应用对存储资源的访问权限：  
+  - 选择条件（selector）：通过Label Selector的设置，可使PVC对于系统中已存在的PV进行筛选。
+  - 存储类别（storageClassName）：PVC在定义时可以设定需要的后端存储的类别，只有设置了该class的pv才能被系统选出。
+  - 资源请求（resources）：描述对存储资源的请求。
+
+
+- 创建pvc
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc1
+  namespace: dev
+spec:
+  accessModes: 
+    - ReadWriteMany
+  resources:
+    request:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc1
+  namespace: dev
+spec:
+  accessModes: 
+    - ReadWriteMany
+  resources:
+    request:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc1
+  namespace: dev
+spec:
+  accessModes: 
+    - ReadWriteMany
+  resources:
+    request:
+      storage: 3Gi
+```
+
+```shell
+kubectl create -f pvc.yaml
+```
+
+- 查看pvc
+```
+kubectl get pvc -n dev -o wide
+```
+
+- 使用pod创建pvc
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod1
+  namespace: dev
+spec:
+  containers:
+    - name: busybox
+      image: busybox:1.30
+      command: ["..."]
+      volumeMounts:
+        - name: volume
+          mountPath: /root
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: pvc1
+        readOnly: false
+---
+apiVersion:
+kind: Pod
+metadata:
+  name: pod2
+  namespace: dev
+spec: 
+  containers:
+    - name: busybox
+      image: busybox:1.30
+      command: [".."]
+      volumeMounts:
+        - name: volume
+          mountPath: /root/
+  volumes:
+    - name: volume
+      persistentVolumeClaim:
+        claimName: pvc2
+        readOnly: false
+```
