@@ -215,3 +215,17 @@ public static void createTopic() {
 
 ### DescribeConfigsResult
 查询Topics配置项
+```java
+    /*
+    * 查看config
+    * */
+    private static void describeConfig() throws Exception {
+        AdminClient adminClient = adminClient();
+
+        ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, "first-topic");
+        DescribeConfigsResult describeConfigsResult = adminClient.describeConfigs(List.of(configResource));
+        Map<ConfigResource, Config> configResourceConfigMap = describeConfigsResult.all().get();
+
+        System.out.println("configResourceConfigMap = " + configResourceConfigMap);
+    }
+```
