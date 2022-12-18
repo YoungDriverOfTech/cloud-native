@@ -199,6 +199,19 @@ public static void createTopic() {
 
 ### DescribeTopicsResult
 查询Topics
+```java
+    /*
+    * 描述topic
+    * */
+    private static void describeTopic() throws ExecutionException, InterruptedException {
+        AdminClient adminClient = adminClient();
+        DescribeTopicsResult describeTopicsResult = adminClient.describeTopics(List.of("first-topic"));
+        Map<String, TopicDescription> stringTopicDescriptionMap = describeTopicsResult.all().get();
+        System.out.println("stringTopicDescriptionMap = " + stringTopicDescriptionMap);
+    }
+```
+
+
 
 ### DescribeConfigsResult
 查询Topics配置项
