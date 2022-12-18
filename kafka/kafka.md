@@ -229,3 +229,23 @@ public static void createTopic() {
         System.out.println("configResourceConfigMap = " + configResourceConfigMap);
     }
 ```
+
+修改配置项  
+```java
+    /*
+     * 修改config
+     * */
+    private static void alterConfig() throws Exception {
+        AdminClient adminClient = adminClient();
+        Map<ConfigResource, Config> configMap = new HashMap<>();
+
+        // 制作两个参数
+        ConfigResource configResource = new ConfigResource(ConfigResource.Type.TOPIC, "first-topic");
+        Config config = new Config(List.of(new ConfigEntry("preallocate", "true")));
+        configMap.put(configResource, config)
+
+        AlterConfigsResult alterConfigsResult = adminClient.alterConfigs(configMap);
+        System.out.println("alterConfigsResult = " + alterConfigsResult);
+    }
+```
+
