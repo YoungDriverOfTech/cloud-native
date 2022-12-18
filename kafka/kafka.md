@@ -159,8 +159,17 @@ public static void createTopic() {
     }
 ```
 
-### CreateTopicsResult
-创建Topic的返回结果
+### 删除topic
+```java
+    /*
+    * 删除topic
+    * */
+    private static void deleteTopic() throws Exception {
+        AdminClient adminClient = adminClient();
+        DeleteTopicsResult deleteTopicsResult = adminClient.deleteTopics(List.of(TOPIC_NAME));
+        deleteTopicsResult.all().get();
+    }
+```
 
 ### ListTopicsResult & ListTopicsOptions 
 查询Topic列表  
