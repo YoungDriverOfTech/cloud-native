@@ -162,11 +162,31 @@ public static void createTopic() {
 ### CreateTopicsResult
 创建Topic的返回结果
 
-### ListTopicsResult
-查询Topic列表
-
-### ListTopicsOptions 
+### ListTopicsResult & ListTopicsOptions 
+查询Topic列表  
 查询Topic列表及选项 
+```java
+    /*
+    * kafka查找
+    * */
+    public static void topicLists() throws Exception {
+        AdminClient adminClient = adminClient();
+
+        // 把内部topic一起打印出来
+        ListTopicsOptions options = new ListTopicsOptions();
+        options.listInternal(true);
+
+        // 不加options，不打印内部topic
+//        ListTopicsResult listTopicsResult = adminClient.listTopics();
+
+        // 加上options，把内部topic也能打出来
+        ListTopicsResult listTopicsResult = adminClient.listTopics(options);
+
+        Set<String> names = listTopicsResult.names().get();
+        names.forEach(System.out::println);
+    }
+```
+
 
 ### DescribeTopicsResult
 查询Topics
