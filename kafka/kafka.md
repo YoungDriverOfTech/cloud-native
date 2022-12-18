@@ -143,6 +143,21 @@ public class AdminSimple {
 
 ### NewTopic
 创建Topic
+```java
+public static void createTopic() {
+        AdminClient adminClient = AdminSimple.adminClient();
+
+        // 副本因子
+        short rs = 1;
+
+        // 第二个参数是分区数量，第三个是副本数量
+        NewTopic newTopic = new NewTopic(TOPIC_NAME, 1, rs);
+
+        // createTopics接受数组
+        CreateTopicsResult topics = adminClient.createTopics(List.of(newTopic));
+        System.out.println("topics = " + topics);
+    }
+```
 
 ### CreateTopicsResult
 创建Topic的返回结果
