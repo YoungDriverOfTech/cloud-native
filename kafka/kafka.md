@@ -103,3 +103,58 @@ zookeeper.connect=localhost:2181
 # 6. 消费消息
 ./bin/kafka-console-consumer.sh --bootstrap-server Public IPv4 DNS:9092 --topic first-topic --from-beginning
 ```
+
+# kakfka的API  
+## AdminClient API  
+
+### AdminClient  
+AdminClient客户端对象
+
+```java
+package com.liang.kafkapricatice.admin;
+
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+
+import java.util.Properties;
+
+public class AdminSimple {
+
+    public static void main(String[] args) {
+        AdminClient adminClient = AdminSimple.adminClient();
+        System.out.println("adminClient = " + adminClient);
+    }
+
+    /*
+    * 设置admin client
+    * */
+    public static AdminClient adminClient() {
+        // kafka的配置
+        Properties properties = new Properties();
+
+        // 集群地址
+        properties.setProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka Address:9092");
+
+        return AdminClient.create(properties);
+    }
+}
+```
+
+
+### NewTopic
+创建Topic
+
+### CreateTopicsResult
+创建Topic的返回结果
+
+### ListTopicsResult
+查询Topic列表
+
+### ListTopicsOptions 
+查询Topic列表及选项 
+
+### DescribeTopicsResult
+查询Topics
+
+### DescribeConfigsResult
+查询Topics配置项
