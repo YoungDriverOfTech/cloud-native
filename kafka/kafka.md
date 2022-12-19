@@ -268,6 +268,8 @@ public static void createTopic() {
 
 ##  Producer API  
 
+Producer是线程安全的，且不是一条一条发送的，而是批量发送的。  
+
 ### 异步发送消息
 ```java
     /*
