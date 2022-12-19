@@ -98,10 +98,10 @@ zookeeper.connect=localhost:2181
 ./bin/kafka-topics.sh --list --zookeeper localhost:2181
 
 # 5. 发送消息 (因为启动的时候用了dns，所以发送消息也要换成dns)
-./bin/kafka-console-producer.sh --broker-list Public IPv4 DNS:9092 --topic first-topic
+./bin/kafka-console-producer.sh --broker-list ec2-35-73-156-207.ap-northeast-1.compute.amazonaws.com:9092 --topic first-topic
 
 # 6. 消费消息
-./bin/kafka-console-consumer.sh --bootstrap-server Public IPv4 DNS:9092 --topic first-topic --from-beginning
+./bin/kafka-console-consumer.sh --bootstrap-server ec2-35-73-156-207.ap-northeast-1.compute.amazonaws.com:9092 --topic first-topic --from-beginning
 ```
 
 # kakfka的API  
