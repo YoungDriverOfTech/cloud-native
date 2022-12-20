@@ -2406,7 +2406,7 @@ kubectl create -f volume.hostpath.yaml
 kubectl get pod volume-hostpath -n dev -o wide
 ```
 
-### 6.2.2 HostPath  
+### 6.2.3 NFS  
 - 概述  
 
 HostPath虽然可以解决数据持久化的问题，但是一旦Node节点故障了，Pod如果转移到别的Node节点上，又会出现问题，此时需要准备单独的网络存储系统，比较常用的是NFS和CIFS。
