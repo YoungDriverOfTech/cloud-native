@@ -2739,3 +2739,128 @@ spec:
         claimName: pvc2
         readOnly: false
 ```
+
+## 6.4 配置存储
+### 6.4.1 ConfigMap  
+- 概述  
+主要作用是用来存储配置信息  
+
+- 资源清单  
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap
+  namespace:
+data: # <map[string]string>
+...
+```
+
+- 创建  
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata: 
+  name: configmap
+  namespace: dev
+data:
+  info:
+    username: root
+    password: root
+```
+```shell
+kubectl create -f configmap.yaml
+```
+
+- 创建pod
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-configmap
+  namespace: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      volumeMounts:
+        - name: config
+          mountPath: /configmap/config
+  volumes:
+    - name: config
+      configMap:
+        name: configmap
+```
+
+```shell
+kubectl create -f pod-configmap.yaml
+```
+
+- 查看pod  
+```shell
+kubectl get pod pod-configmap.yaml
+```
+
+### 6.4.2 Secret
+- 概述  
+用来存储敏感信息，比如密码，密钥，证书等  
+
+- 创建secrete  
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret
+  namespace: dev
+type: Opaque
+data:
+  username: admin
+  password: admin
+```
+
+```shell
+kubectl create -f secret.yaml
+```
+
+- 查看secret详情  
+```shell
+kubectl describe secret secret -n dev
+```
+
+- 创建pod
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-secret
+  namespace: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.17.1
+      volumeMounts:
+        - name: config
+          mountPath: /secret/config
+  volumes:
+    - name: config
+      secret:
+        secretName: secret
+```
+
+```shell
+kubectl crete -f pod-secret.yaml
+```
+
+### 6.4.3 ConfigMap高级
+
+- 概述  
+
+> 注意事项：  
+>> ConfigMap 在设计上不是用来保存大量数据的。在 ConfigMap 中保存的数据不可超过 1 MiB。  
+>> 如果需要保存超出此尺寸限制的数据，需要考虑挂载存储卷或者使用独立的数据库或者文件服务。  
+
+语法
+```shell
+kubectl create configmap <map-name> <data-source>
+```
+
