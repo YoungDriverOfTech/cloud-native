@@ -416,3 +416,30 @@ Producer是线程安全的，且不是一条一条发送的，而是批量发送
         producer.close();
     }
 ```
+
+##  Consumer API  
+### Hello World
+```java
+    private static void HelloWorld() {
+        Properties props = new Properties();
+        props.setProperty("bootstrap.servers", "ec2-35-73-156-207.ap-northeast-1.compute.amazonaws.com:9092");
+        props.setProperty("group.id", "test");
+        props.setProperty("enable.auto.commit", "true");
+        props.setProperty("auto.commit.interval.ms", "1000");
+        props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+
+        // 订阅哪个topic
+        consumer.subscribe(List.of(TOPIC_NAME));
+        while (true) {
+
+            // 没间隔100毫秒去kafka拉取记录
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+            for (ConsumerRecord<String, String> record : records) {
+                System.out.printf("offset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value());
+            }
+        }
+    }
+```
